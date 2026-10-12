@@ -180,6 +180,66 @@ fig = px.bar(
 )
 st.plotly_chart(fig, use_container_width=True)
 
+# Baseline vs Adaptive Allocation Comparison
+st.subheader("Baseline vs AI-Assisted Allocation")
+
+# Keep the same demand for a fair comparison.
+# Baseline uses fixed priorities; adaptive uses the priorities above.
+baseline_profile = {
+    name: {
+        "demand": item["demand"],
+        "weight": weight
+    }
+    for (name, item), weight in zip(
+        profile.items(), [5, 4, 3, 2, 1]
+    )
+}
+
+baseline_allocation = allocate(baseline_profile, capacity)
+
+critical_apps = ["Remote Surgery", "Patient Monitoring"]
+
+baseline_critical = sum(
+    baseline_allocation[name] for name in critical_apps
+)
+adaptive_critical = sum(
+    allocation[name] for name in critical_apps
+)
+
+baseline_unmet = sum(
+    max(0, item["demand"] - baseline_allocation[name])
+    for name, item in baseline_profile.items()
+)
+adaptive_unmet = sum(
+    max(0, item["demand"] - allocation[name])
+    for name, item in profile.items()
+)
+
+comparison = pd.DataFrame([
+    {
+        "Method": "Baseline",
+        "Critical Apps Bandwidth (Mbps)": round(baseline_critical, 2),
+        "Total Unmet Demand (Mbps)": round(baseline_unmet, 2)
+    },
+    {
+        "Method": "AI-Assisted",
+        "Critical Apps Bandwidth (Mbps)": round(adaptive_critical, 2),
+        "Total Unmet Demand (Mbps)": round(adaptive_unmet, 2)
+    }
+])
+
+st.dataframe(comparison, use_container_width=True, hide_index=True)
+
+comparison_chart = px.bar(
+    comparison,
+    x="Method",
+    y=["Critical Apps Bandwidth (Mbps)", "Total Unmet Demand (Mbps)"],
+    barmode="group",
+    title="Baseline vs AI-Assisted Performance"
+)
+
+st.plotly_chart(comparison_chart, use_container_width=True)
+
 st.info(
     "Prototype simulation only. This website does not control a real "
     "hospital network or guarantee medical-service performance."
