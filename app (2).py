@@ -240,6 +240,46 @@ comparison_chart = px.bar(
 
 st.plotly_chart(comparison_chart, use_container_width=True)
 
+# Per-Application Bandwidth Comparison
+st.subheader("Bandwidth Allocation by Hospital Application")
+
+application_comparison = pd.DataFrame([
+    {
+        "Application": name,
+        "Baseline (Mbps)": round(baseline_allocation[name], 2),
+        "AI-Assisted (Mbps)": round(allocation[name], 2)
+    }
+    for name in profile
+])
+
+application_comparison_long = application_comparison.melt(
+    id_vars="Application",
+    value_vars=["Baseline (Mbps)", "AI-Assisted (Mbps)"],
+    var_name="Allocation Method",
+    value_name="Bandwidth (Mbps)"
+)
+
+application_chart = px.bar(
+    application_comparison_long,
+    x="Application",
+    y="Bandwidth (Mbps)",
+    color="Allocation Method",
+    barmode="group",
+    title="Baseline vs AI-Assisted Bandwidth per Application",
+    labels={
+        "Application": "Hospital Application",
+        "Bandwidth (Mbps)": "Allocated Bandwidth (Mbps)"
+    }
+)
+
+st.plotly_chart(application_chart, use_container_width=True)
+
+st.caption(
+    "The chart compares simulated allocations under the same capacity "
+    "and demand. AI-assisted allocation changes priority weights when "
+    "congestion is predicted or emergency mode is enabled."
+)
+
 st.info(
     "Prototype simulation only. This website does not control a real "
     "hospital network or guarantee medical-service performance."
