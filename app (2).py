@@ -1,0 +1,183 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.express as px
+from sklearn.ensemble import RandomForestClassifier
+
+st.set_page_config(
+    page_title="HospitalNet AI",
+    page_icon="🏥",
+    layout="wide"
+)
+
+NORMAL = {
+    "Remote Surgery": {"demand": 12, "weight": 5},
+    "Patient Monitoring": {"demand": 10, "weight": 4},
+    "Medical Telemetry": {"demand": 8, "weight": 3},
+    "Doctor Communication": {"demand": 8, "weight": 2},
+    "Regular Internet": {"demand": 20, "weight": 1},
+}
+
+EMERGENCY = {
+    "Remote Surgery": {"demand": 20, "weight": 10},
+    "Patient Monitoring": {"demand": 15, "weight": 8},
+    "Medical Telemetry": {"demand": 10, "weight": 5},
+    "Doctor Communication": {"demand": 8, "weight": 3},
+    "Regular Internet": {"demand": 20, "weight": 1},
+}
+
+@st.cache_resource
+def train_model():
+    rng = np.random.default_rng(42)
+    n = 3000
+    capacity = rng.integers(10, 101, n)
+    emergency = rng.integers(0, 2, n)
+
+    demand = np.array([
+        sum(x["demand"] * rng.uniform(.6, 1.4)
+            for x in (EMERGENCY if e else NORMAL).values())
+        for e in emergency
+    ])
+
+    utilization = 100 * demand / capacity
+    latency = np.clip(
+        15 + 1.2 * utilization + rng.normal(0, 8, n), 1, 300
+    )
+    loss = np.clip(
+        np.maximum(0, utilization - 75) * .12
+        + rng.normal(0, .8, n), 0, 30
+    )
+
+    X = pd.DataFrame({
+        "Capacity_Mbps": capacity,
+        "Demand_Mbps": demand,
+        "Utilization_Percent": utilization,
+        "Latency_ms": latency,
+        "Packet_Loss_Percent": loss,
+        "Emergency": emergency
+    })
+
+    y = ((demand > capacity) | (latency > 100) | (loss > 5)).astype(int)
+
+    model = RandomForestClassifier(
+        n_estimators=100, max_depth=10,
+        random_state=42, class_weight="balanced"
+    )
+    model.fit(X, y)
+    return model
+
+model = train_model()
+
+def allocate(profile, capacity):
+    allocation = {name: 0.0 for name in profile}
+    remaining = float(capacity)
+    active = list(profile)
+
+    while remaining > 1e-9 and active:
+        total_weight = sum(profile[n]["weight"] for n in active)
+        used = 0.0
+        next_active = []
+
+        for name in active:
+            share = remaining * profile[name]["weight"] / total_weight
+            grant = min(
+                share, profile[name]["demand"] - allocation[name]
+            )
+            allocation[name] += grant
+            used += grant
+
+            if allocation[name] < profile[name]["demand"] - 1e-9:
+                next_active.append(name)
+
+        remaining -= used
+        if used <= 1e-9:
+            break
+        active = next_active
+
+    return allocation
+
+st.title("🏥 HospitalNet AI")
+st.caption("AI-Assisted Hospital Network Resource Management")
+
+st.sidebar.header("Network Controls")
+capacity = st.sidebar.slider(
+    "Available bandwidth (Mbps)", 10, 100, 30, 5
+)
+emergency = st.sidebar.toggle("Activate emergency mode", value=False)
+
+profile = {
+    name: item.copy()
+    for name, item in (EMERGENCY if emergency else NORMAL).items()
+}
+
+demand = sum(x["demand"] for x in profile.values())
+utilization = 100 * demand / capacity
+latency = max(1, 15 + 1.2 * utilization)
+loss = max(0, (utilization - 75) * .12)
+
+features = pd.DataFrame([{
+    "Capacity_Mbps": capacity,
+    "Demand_Mbps": demand,
+    "Utilization_Percent": utilization,
+    "Latency_ms": latency,
+    "Packet_Loss_Percent": loss,
+    "Emergency": int(emergency)
+}])
+
+probability = model.predict_proba(features)[0][1]
+congested = bool(model.predict(features)[0])
+
+if congested or emergency:
+    profile["Remote Surgery"]["weight"] = 10
+    profile["Patient Monitoring"]["weight"] = 8
+    profile["Medical Telemetry"]["weight"] = 5
+    profile["Doctor Communication"]["weight"] = 3
+    profile["Regular Internet"]["weight"] = 1
+
+allocation = allocate(profile, capacity)
+
+results = pd.DataFrame([
+    {
+        "Application": name,
+        "Demand (Mbps)": item["demand"],
+        "Allocated (Mbps)": round(allocation[name], 2),
+        "Unmet Demand (Mbps)": round(
+            max(0, item["demand"] - allocation[name]), 2
+        )
+    }
+    for name, item in profile.items()
+])
+
+a, b, c, d = st.columns(4)
+a.metric("Network Capacity", f"{capacity} Mbps")
+b.metric("Total Demand", f"{demand} Mbps")
+c.metric("Estimated Latency", f"{latency:.1f} ms")
+d.metric("Estimated Packet Loss", f"{loss:.2f}%")
+
+st.subheader("AI Congestion Prediction")
+st.write("**Status:**", "⚠️ Possible congestion" if congested
+         else "✅ No congestion predicted")
+st.write(f"Model congestion probability: {probability:.1%}")
+st.caption("Predictions use a synthetic training dataset; they are not validated clinical-network predictions.")
+
+st.subheader("Adaptive Bandwidth Allocation")
+st.dataframe(results, use_container_width=True, hide_index=True)
+
+chart = results.melt(
+    id_vars="Application",
+    value_vars=["Demand (Mbps)", "Allocated (Mbps)"],
+    var_name="Measure",
+    value_name="Bandwidth (Mbps)"
+)
+
+fig = px.bar(
+    chart, x="Application", y="Bandwidth (Mbps)",
+    color="Measure", barmode="group",
+    title="Demand vs Allocated Bandwidth"
+)
+st.plotly_chart(fig, use_container_width=True)
+
+st.info(
+    "Prototype simulation only. This website does not control a real "
+    "hospital network or guarantee medical-service performance."
+)
