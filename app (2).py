@@ -112,9 +112,11 @@ profile = {
 
 demand = sum(x["demand"] for x in profile.values())
 utilization = 100 * demand / capacity
-latency = max(1, 15 + 1.2 * utilization)
-loss = max(0, (utilization - 75) * .12)
+unmet_demand = max(0, demand - capacity)
+unmet_fraction = unmet_demand / demand if demand else 0
 
+latency = 15 + 150 * unmet_fraction
+loss = 15 * unmet_fraction
 features = pd.DataFrame([{
     "Capacity_Mbps": capacity,
     "Demand_Mbps": demand,
@@ -124,9 +126,10 @@ features = pd.DataFrame([{
     "Emergency": int(emergency)
 }])
 
-probability = model.predict_proba(features)[0][1]
-congested = bool(model.predict(features)[0])
+probability = float(model.predict_proba(features)[0][1])
 
+# Operational simulation status based on demand and capacity
+congested = demand > capacity
 if congested or emergency:
     profile["Remote Surgery"]["weight"] = 10
     profile["Patient Monitoring"]["weight"] = 8
