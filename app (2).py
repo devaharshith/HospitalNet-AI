@@ -1772,6 +1772,106 @@ st.caption(
     "during the current Streamlit session. It is not a persistent "
     "or tamper-proof production audit system."
 )
+
+# ==========================================================
+# STEP 19: LIVE NETWORK HEALTH SCORE
+# ==========================================================
+
+st.divider()
+st.header("💚 Step 19: Live Network Health Score")
+
+st.write(
+    "A rule-based score summarizing the current simulated "
+    "hospital network conditions."
+)
+
+# Calculate individual health factors (0 to 100)
+utilization_health = max(
+    0.0,
+    min(100.0, 100.0 - max(0.0, utilization - 70.0) * 2.0)
+)
+
+latency_health = max(
+    0.0,
+    min(100.0, 100.0 - max(0.0, latency - 20.0) * 0.8)
+)
+
+packet_loss_health = max(
+    0.0,
+    min(100.0, 100.0 - loss * 10.0)
+)
+
+# Weighted score: congestion has the greatest influence
+network_health_score = round(
+    0.50 * utilization_health
+    + 0.30 * latency_health
+    + 0.20 * packet_loss_health
+)
+
+network_health_score = int(
+    max(0, min(100, network_health_score))
+)
+
+if network_health_score >= 80:
+    health_status = "Healthy"
+    st.success("Network Health: HEALTHY")
+elif network_health_score >= 50:
+    health_status = "Degraded"
+    st.warning("Network Health: DEGRADED")
+else:
+    health_status = "Critical"
+    st.error("Network Health: CRITICAL")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.metric(
+        "Network Health Score",
+        f"{network_health_score}/100"
+    )
+    st.progress(network_health_score / 100)
+
+with col2:
+    st.metric(
+        "Network Status",
+        health_status
+    )
+    st.metric(
+        "Current Utilization",
+        f"{utilization:.1f}%"
+    )
+
+health_factors_df = pd.DataFrame({
+    "Health Factor": [
+        "Utilization",
+        "Estimated Latency",
+        "Estimated Packet Loss",
+    ],
+    "Factor Score": [
+        round(utilization_health, 1),
+        round(latency_health, 1),
+        round(packet_loss_health, 1),
+    ],
+})
+
+st.subheader("Health Factor Breakdown")
+
+fig_health = px.bar(
+    health_factors_df,
+    x="Health Factor",
+    y="Factor Score",
+    range_y=[0, 100],
+    text="Factor Score",
+    title="Contribution Factors (Individual Scores)",
+)
+
+st.plotly_chart(fig_health, use_container_width=True)
+
+st.caption(
+    "The overall score is a custom weighted indicator based on "
+    "simulated utilization, estimated latency, and estimated packet loss. "
+    "It is not a standardized network SLA or a real-time measurement."
+)
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
