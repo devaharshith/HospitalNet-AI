@@ -1208,6 +1208,149 @@ st.caption(
     "real-world hospital network reliability or "
     "machine-learning prediction accuracy."
 )
+
+# --------------------------------------------------
+# STEP 14: RANDOM FOREST MODEL EVALUATION
+# --------------------------------------------------
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    confusion_matrix
+)
+
+st.divider()
+st.subheader("🤖 AI Model Performance Evaluation")
+
+st.write(
+    "Evaluate a Random Forest classifier on held-out "
+    "synthetic network scenarios."
+)
+
+@st.cache_data
+def evaluate_synthetic_model():
+    rng = np.random.default_rng(2026)
+    n = 3000
+
+    capacities = rng.integers(10, 101, n)
+    emergencies = rng.integers(0, 2, n)
+
+    demands = np.array([
+        sum(
+            item["demand"] * rng.uniform(0.6, 1.4)
+            for item in (
+                EMERGENCY if e else NORMAL
+            ).values()
+        )
+        for e in emergencies
+    ])
+
+    utilizations = 100 * demands / capacities
+
+    unmet = np.maximum(0, demands - capacities)
+    unmet_fraction = unmet / demands
+
+    latencies = np.clip(
+        15 + 150 * unmet_fraction
+        + rng.normal(0, 5, n),
+        1, 300
+    )
+
+    losses = np.clip(
+        15 * unmet_fraction
+        + rng.normal(0, 0.5, n),
+        0, 30
+    )
+
+    X_eval = pd.DataFrame({
+        "Capacity_Mbps": capacities,
+        "Demand_Mbps": demands,
+        "Utilization_Percent": utilizations,
+        "Latency_ms": latencies,
+        "Packet_Loss_Percent": losses,
+        "Emergency": emergencies
+    })
+
+    y_eval = (
+        (demands > capacities)
+        | (latencies > 100)
+        | (losses > 5)
+    ).astype(int)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_eval,
+        y_eval,
+        test_size=0.25,
+        random_state=42,
+        stratify=y_eval
+    )
+
+    evaluation_model = RandomForestClassifier(
+        n_estimators=100,
+        max_depth=10,
+        random_state=42,
+        class_weight="balanced"
+    )
+
+    evaluation_model.fit(X_train, y_train)
+    predictions = evaluation_model.predict(X_test)
+
+    metrics = {
+        "Accuracy": accuracy_score(y_test, predictions),
+        "Precision": precision_score(
+            y_test, predictions, zero_division=0
+        ),
+        "Recall": recall_score(
+            y_test, predictions, zero_division=0
+        ),
+        "F1-score": f1_score(
+            y_test, predictions, zero_division=0
+        )
+    }
+
+    matrix = confusion_matrix(
+        y_test, predictions, labels=[0, 1]
+    )
+
+    return metrics, matrix, len(y_test)
+
+
+metrics, matrix, test_size = evaluate_synthetic_model()
+
+m1, m2, m3, m4 = st.columns(4)
+
+m1.metric("Accuracy", f"{metrics['Accuracy']:.1%}")
+m2.metric("Precision", f"{metrics['Precision']:.1%}")
+m3.metric("Recall", f"{metrics['Recall']:.1%}")
+m4.metric("F1-score", f"{metrics['F1-score']:.1%}")
+
+st.caption(
+    f"Evaluation uses {test_size} held-out synthetic test cases. "
+    "These metrics evaluate a separately trained model using "
+    "the same synthetic-data generation approach; they are "
+    "not measurements of real hospital network performance."
+)
+
+st.markdown("#### Confusion Matrix")
+
+confusion_df = pd.DataFrame(
+    matrix,
+    index=["Actual: No Congestion", "Actual: Congestion"],
+    columns=["Predicted: No Congestion", "Predicted: Congestion"]
+)
+
+st.dataframe(
+    confusion_df,
+    use_container_width=True
+)
+
+st.caption(
+    "Synthetic labels are generated from simulated demand, "
+    "latency, and packet-loss rules. High scores do not "
+    "establish real-world predictive accuracy."
+)
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
