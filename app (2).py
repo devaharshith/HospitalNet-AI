@@ -217,13 +217,44 @@ results = pd.DataFrame([
     for name, item in profile.items()
 ])
 
+
 a, b, c, d = st.columns(4)
 a.metric("Network Capacity", f"{capacity} Mbps")
 b.metric("Total Demand", f"{demand} Mbps")
 c.metric("Estimated Latency", f"{latency:.1f} ms")
 d.metric("Estimated Packet Loss", f"{loss:.2f}%")
 
+# NEW: Live Network Health Monitor
+st.subheader("📡 Live Network Health Monitor")
+
+utilization_percent = (
+    (demand / capacity) * 100 if capacity > 0 else 0
+)
+
+st.metric(
+    "Network Utilization",
+    f"{utilization_percent:.1f}%"
+)
+
+st.progress(
+    min(max(utilization_percent / 100, 0.0), 1.0)
+)
+
+if utilization_percent > 100:
+    st.error("🔴 OVERLOADED: Network demand exceeds capacity.")
+elif utilization_percent >= 80:
+    st.warning("🟡 HIGH LOAD: Network approaching full capacity.")
+else:
+    st.success("🟢 STABLE: Network operating within available capacity.")
+
+st.caption(
+    "Simulated utilization updates when the capacity slider "
+    "or emergency setting changes."
+)
+
+# EXISTING CODE: Keep everything below unchanged
 st.subheader("AI Congestion Prediction")
+
 st.write("**Status:**", "⚠️ Possible congestion" if congested
          else "✅ No congestion predicted")
 st.write(f"Model congestion probability: {probability:.1%}")
