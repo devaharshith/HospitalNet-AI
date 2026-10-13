@@ -1469,6 +1469,119 @@ st.info(
     "network recovery."
 )
 
+# ==========================================================
+# STEP 16: EMERGENCY ALERT AND RECOVERY RECOMMENDATIONS
+# ==========================================================
+
+st.divider()
+st.header("🚨 Step 16: Emergency Alert and Recovery Recommendations")
+
+st.write(
+    "TEJAS analyses the simulated network failure and recommends "
+    "actions to protect critical hospital applications."
+)
+
+# Read the failure results generated in Step 15
+failure_row = failure_df[
+    failure_df["Stage"] == "Network Failure"
+].iloc[0]
+
+normal_row = failure_df[
+    failure_df["Stage"] == "Normal"
+].iloc[0]
+
+recovery_row = failure_df[
+    failure_df["Stage"] == "Recovery"
+].iloc[0]
+
+failure_capacity_now = float(failure_row["Capacity (Mbps)"])
+failure_demand_now = float(failure_row["Demand (Mbps)"])
+failure_unmet_now = float(failure_row["Unmet Demand (Mbps)"])
+
+baseline_critical_now = float(
+    failure_row["Baseline Critical (Mbps)"]
+)
+
+priority_critical_now = float(
+    failure_row["Priority Critical (Mbps)"]
+)
+
+# Display current simulated failure status
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "Failure Capacity",
+        f"{failure_capacity_now:.1f} Mbps"
+    )
+
+with col2:
+    st.metric(
+        "Unmet Demand",
+        f"{failure_unmet_now:.1f} Mbps"
+    )
+
+with col3:
+    st.metric(
+        "Critical Bandwidth Gain",
+        f"{priority_critical_now - baseline_critical_now:.1f} Mbps"
+    )
+
+# Generate a rule-based recommendation
+if failure_unmet_now > 0:
+    st.error("🚨 SIMULATED NETWORK CONGESTION DETECTED")
+
+    st.subheader("Recommended Actions")
+
+    st.markdown(
+        """
+        1. Prioritize Remote Surgery and Patient Monitoring traffic.
+        2. Reduce or defer non-critical traffic where operationally appropriate.
+        3. Ask the network administrator to investigate the capacity reduction.
+        4. Restore available network capacity and verify critical application connectivity.
+        """
+    )
+
+    if priority_critical_now > baseline_critical_now:
+        st.success(
+            "The simulated priority policy allocates more bandwidth "
+            "to critical applications than the baseline."
+        )
+    else:
+        st.warning(
+            "The priority policy has not increased critical bandwidth "
+            "in this scenario. Review the allocation policy before claiming "
+            "an improvement."
+        )
+
+else:
+    st.success(
+        "No unmet bandwidth demand is detected in the simulated "
+        "failure scenario. Continue monitoring network capacity."
+    )
+
+# Compare the simulated recovery with normal operation
+st.subheader("Recovery Verification")
+
+normal_capacity_now = float(normal_row["Capacity (Mbps)"])
+recovered_capacity_now = float(recovery_row["Capacity (Mbps)"])
+
+if recovered_capacity_now >= normal_capacity_now:
+    st.success(
+        f"Simulated recovery capacity is {recovered_capacity_now:.1f} Mbps. "
+        "It has returned to the normal capacity setting."
+    )
+else:
+    st.warning(
+        "Simulated recovery capacity is below the normal capacity setting. "
+        "Further investigation is recommended."
+    )
+
+st.info(
+    "This is a rule-based software demonstration using simulated data. "
+    "It does not send real emergency notifications, change router settings, "
+    "or restore an actual hospital network."
+)
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
