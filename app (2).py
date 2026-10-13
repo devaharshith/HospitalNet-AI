@@ -319,6 +319,60 @@ fig = px.bar(
 )
 st.plotly_chart(fig, use_container_width=True)
 
+# Before vs After Performance Summary
+st.subheader("📊 Network Optimization Summary")
+
+improvement_mbps = adaptive_critical - baseline_critical
+
+improvement_percent = (
+    (improvement_mbps / baseline_critical) * 100
+    if baseline_critical > 0 else 0
+)
+
+col1, col2, col3 = st.columns(3)
+
+col1.metric(
+    "Baseline Critical Bandwidth",
+    f"{baseline_critical:.2f} Mbps"
+)
+
+col2.metric(
+    "Adaptive Critical Bandwidth",
+    f"{adaptive_critical:.2f} Mbps"
+)
+
+col3.metric(
+    "Critical Bandwidth Improvement",
+    f"{improvement_percent:+.1f}%",
+    delta=f"{improvement_mbps:+.2f} Mbps"
+)
+
+if improvement_mbps > 0:
+    st.success(
+        f"Adaptive prioritization provides "
+        f"{improvement_mbps:.2f} Mbps more bandwidth "
+        f"to Remote Surgery and Patient Monitoring "
+        f"({improvement_percent:.1f}% improvement)."
+    )
+elif improvement_mbps == 0:
+    st.info(
+        "Both methods provide the same total bandwidth "
+        "to critical applications under these conditions."
+    )
+else:
+    st.warning(
+        "Adaptive allocation provides less bandwidth "
+        "to the selected critical applications in this scenario."
+    )
+
+st.caption(
+    "Results compare simulated priority-weighted allocation "
+    "against a fixed-priority baseline. Improvements are not "
+    "measured clinical outcomes or independently validated "
+    "machine-learning gains."
+)
+
+
 # Baseline vs Adaptive Allocation Comparison
 st.subheader("Baseline vs AI-Assisted Allocation")
 
