@@ -260,6 +260,48 @@ st.write("**Status:**", "⚠️ Possible congestion" if congested
 st.write(f"Model congestion probability: {probability:.1%}")
 st.caption("Predictions use a synthetic training dataset; they are not validated clinical-network predictions.")
 
+# AI Decision Explanation Panel
+st.subheader("🧠 Network Allocation Decision Explanation")
+
+if emergency:
+    st.error("🚨 Emergency Mode Activated")
+    st.write(
+        "The system increases priority for Remote Surgery, "
+        "Patient Monitoring, and Medical Telemetry because "
+        "emergency mode is active."
+    )
+
+elif congested:
+    st.warning("⚠️ Network Congestion Detected")
+    st.write(
+        "Total bandwidth demand exceeds available capacity. "
+        "The adaptive allocation policy prioritizes critical "
+        "hospital applications."
+    )
+
+else:
+    st.success("✅ Normal Network Operation")
+    st.write(
+        "Available bandwidth is sufficient for all applications. "
+        "No congestion-triggered priority adjustment is required."
+    )
+
+st.write("**Current Allocation Decision:**")
+
+if emergency:
+    st.info("Emergency-priority allocation enabled.")
+elif congested:
+    st.info("Congestion-priority allocation enabled.")
+else:
+    st.info("Normal allocation priorities enabled.")
+
+st.caption(
+    "Decisions shown here follow simulated demand, capacity, "
+    "and emergency settings. The Random Forest prediction is "
+    "displayed separately and does not directly trigger "
+    "the allocation policy."
+)
+
 st.subheader("Adaptive Bandwidth Allocation")
 st.dataframe(results, use_container_width=True, hide_index=True)
 
