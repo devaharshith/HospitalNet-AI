@@ -10,6 +10,63 @@ st.set_page_config(
     layout="wide"
 )
 
+# Professional HospitalNet AI Dashboard Styling
+st.markdown("""
+<style>
+/* Main dashboard background */
+.stApp {
+    background-color: #0B1730;
+    color: #EAF2FF;
+}
+
+/* Main content area */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    max-width: 1250px;
+}
+
+/* Dashboard headings */
+h1, h2, h3 {
+    color: #59C7FA !important;
+    font-weight: 700;
+}
+
+/* Metric cards */
+[data-testid="stMetric"] {
+    background-color: #172A49;
+    padding: 18px;
+    border-radius: 12px;
+    border: 1px solid #29496B;
+}
+
+/* Metric values */
+[data-testid="stMetricValue"] {
+    color: #FFFFFF;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background-color: #101F39;
+}
+
+/* Buttons */
+.stButton > button {
+    background-color: #1683C5;
+    color: white;
+    border-radius: 8px;
+    border: none;
+}
+
+/* Dataframe container */
+[data-testid="stDataFrame"] {
+    border-radius: 10px;
+    overflow: hidden;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 NORMAL = {
     "Remote Surgery": {"demand": 12, "weight": 5},
     "Patient Monitoring": {"demand": 10, "weight": 4},
@@ -97,6 +154,15 @@ def allocate(profile, capacity):
     return allocation
 
 st.title("🏥 HospitalNet AI")
+st.markdown(
+    "**Intelligent Hospital Network Management | "
+    "AI-Assisted Bandwidth Allocation**"
+)
+st.caption(
+    "TEJAS 2026 | 5G/6G Healthcare Networking Prototype"
+)
+st.divider()
+
 st.caption("AI-Assisted Hospital Network Resource Management")
 
 st.sidebar.header("Network Controls")
