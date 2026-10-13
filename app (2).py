@@ -1872,6 +1872,137 @@ st.caption(
     "simulated utilization, estimated latency, and estimated packet loss. "
     "It is not a standardized network SLA or a real-time measurement."
 )
+
+# ==========================================================
+# STEP 20: SMART NETWORK RECOMMENDATION ENGINE
+# ==========================================================
+
+st.divider()
+st.header("🧠 Step 20: Smart Network Recommendation Engine")
+
+st.write(
+    "Rule-based recommendations generated from the current "
+    "simulated network conditions."
+)
+
+recommendations = []
+
+# Capacity and congestion analysis
+if demand > capacity:
+    recommendations.append({
+        "Priority": "Critical",
+        "Condition": "Demand exceeds capacity",
+        "Recommendation": (
+            "Increase available network capacity where possible, "
+            "or defer non-critical traffic."
+        ),
+    })
+else:
+    recommendations.append({
+        "Priority": "Normal",
+        "Condition": "Demand fits within capacity",
+        "Recommendation": (
+            "Maintain monitoring and review capacity as demand changes."
+        ),
+    })
+
+# Latency analysis
+if latency >= 100:
+    recommendations.append({
+        "Priority": "High",
+        "Condition": "High estimated latency",
+        "Recommendation": (
+            "Investigate congestion, routing, and queueing delays."
+        ),
+    })
+elif latency >= 60:
+    recommendations.append({
+        "Priority": "Medium",
+        "Condition": "Moderate estimated latency",
+        "Recommendation": (
+            "Monitor delay-sensitive applications and network load."
+        ),
+    })
+
+# Packet loss analysis
+if loss > 5:
+    recommendations.append({
+        "Priority": "High",
+        "Condition": "High estimated packet loss",
+        "Recommendation": (
+            "Investigate simulated congestion and check network links."
+        ),
+    })
+
+# Emergency mode analysis
+if emergency:
+    recommendations.append({
+        "Priority": "Critical",
+        "Condition": "Emergency mode enabled",
+        "Recommendation": (
+            "Prioritize Remote Surgery and Patient Monitoring traffic "
+            "in the simulated bandwidth allocation."
+        ),
+    })
+
+# Network health analysis
+if network_health_score < 50:
+    recommendations.append({
+        "Priority": "High",
+        "Condition": "Low network health score",
+        "Recommendation": (
+            "Investigate capacity, latency, and packet-loss factors "
+            "before relying on the network for critical traffic."
+        ),
+    })
+
+recommendation_df = pd.DataFrame(recommendations)
+
+st.subheader("Recommended Actions")
+st.dataframe(
+    recommendation_df,
+    use_container_width=True,
+    hide_index=True,
+)
+
+critical_count = sum(
+    item["Priority"] == "Critical"
+    for item in recommendations
+)
+
+high_count = sum(
+    item["Priority"] == "High"
+    for item in recommendations
+)
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric("Total Recommendations", len(recommendations))
+
+with col2:
+    st.metric("Critical Priority", critical_count)
+
+with col3:
+    st.metric("High Priority", high_count)
+
+recommendation_csv = recommendation_df.to_csv(
+    index=False
+).encode("utf-8")
+
+st.download_button(
+    "📥 Download Recommendations (CSV)",
+    data=recommendation_csv,
+    file_name="tejas_network_recommendations.csv",
+    mime="text/csv",
+    key="download_tejas_recommendations",
+)
+
+st.caption(
+    "Recommendations are generated using predefined rules and simulated "
+    "metrics. They do not automatically change network equipment or "
+    "replace a qualified hospital network administrator."
+)
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
