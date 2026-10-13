@@ -887,6 +887,152 @@ st.caption(
 )
 
 # --------------------------------------------------
+# STEP 11: DYNAMIC BANDWIDTH ALLOCATION
+# --------------------------------------------------
+st.subheader("⚡ Dynamic Bandwidth Allocation Simulation")
+
+if "traffic_df" in st.session_state:
+
+    traffic_data = st.session_state["traffic_df"]
+
+    dynamic_results = []
+
+    for _, traffic_row in traffic_data.iterrows():
+
+        current_demand = float(
+            traffic_row["Demand (Mbps)"]
+        )
+
+        current_capacity = float(
+            traffic_row["Capacity (Mbps)"]
+        )
+
+        # Scale application demands proportionally
+        demand_scale = (
+            current_demand / demand if demand > 0 else 0
+        )
+
+        current_profile = {
+            name: {
+                "demand": item["demand"] * demand_scale,
+                "weight": item["weight"]
+            }
+            for name, item in (
+                EMERGENCY if emergency else NORMAL
+            ).items()
+        }
+
+        baseline_profile_step = {
+            name: {
+                "demand": item["demand"],
+                "weight": weight
+            }
+            for (name, item), weight in zip(
+                current_profile.items(),
+                [5, 4, 3, 2, 1]
+            )
+        }
+
+        if current_demand > current_capacity or emergency:
+            for name, weight in zip(
+                current_profile,
+                [10, 8, 5, 3, 1]
+            ):
+                current_profile[name]["weight"] = weight
+
+        baseline_step = allocate(
+            baseline_profile_step,
+            current_capacity
+        )
+
+        adaptive_step = allocate(
+            current_profile,
+            current_capacity
+        )
+
+        baseline_critical_step = sum(
+            baseline_step[name]
+            for name in critical_apps
+        )
+
+        adaptive_critical_step = sum(
+            adaptive_step[name]
+            for name in critical_apps
+        )
+
+        dynamic_results.append({
+            "Time Step": int(traffic_row["Time Step"]),
+            "Baseline Critical (Mbps)":
+                baseline_critical_step,
+            "Adaptive Critical (Mbps)":
+                adaptive_critical_step
+        })
+
+    dynamic_df = pd.DataFrame(dynamic_results)
+
+    dynamic_chart = px.line(
+        dynamic_df,
+        x="Time Step",
+        y=[
+            "Baseline Critical (Mbps)",
+            "Adaptive Critical (Mbps)"
+        ],
+        markers=True,
+        title="Critical Bandwidth Allocation Over Time"
+    )
+
+    st.plotly_chart(
+        dynamic_chart,
+        use_container_width=True
+    )
+
+    total_baseline = dynamic_df[
+        "Baseline Critical (Mbps)"
+    ].sum()
+
+    total_adaptive = dynamic_df[
+        "Adaptive Critical (Mbps)"
+    ].sum()
+
+    gain = total_adaptive - total_baseline
+
+    gain_percent = (
+        gain / total_baseline * 100
+        if total_baseline > 0 else 0
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Average Baseline Critical Bandwidth",
+        f"{dynamic_df['Baseline Critical (Mbps)'].mean():.2f} Mbps"
+    )
+
+    col2.metric(
+        "Average Adaptive Critical Bandwidth",
+        f"{dynamic_df['Adaptive Critical (Mbps)'].mean():.2f} Mbps"
+    )
+
+    col3.metric(
+        "Relative Critical Bandwidth Gain",
+        f"{gain_percent:+.1f}%"
+    )
+
+    st.caption(
+        "Application demands are proportionally scaled "
+        "using synthetic traffic. Adaptive allocation "
+        "changes priority weights during congestion "
+        "or emergency mode. These are simulated results."
+    )
+
+else:
+    st.info(
+        "Generate network traffic in Step 10 first "
+        "to see dynamic bandwidth allocation."
+    )
+
+
+# --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
 st.divider()
