@@ -1648,6 +1648,130 @@ st.caption(
     "Latency and packet loss are estimated values, not live measurements."
 )
 
+# ==========================================================
+# STEP 18: NETWORK EVENT HISTORY AND AUDIT LOG
+# ==========================================================
+
+st.divider()
+st.header("📝 Step 18: Network Event History and Audit Log")
+
+st.write(
+    "Review a timestamped audit log of the current simulated "
+    "hospital network state."
+)
+
+from datetime import datetime
+
+# Initialize the event history for this browser session
+if "tejas_event_log" not in st.session_state:
+    st.session_state["tejas_event_log"] = []
+
+# Build a signature for the current network state
+current_signature = (
+    bool(emergency),
+    round(float(capacity), 2),
+    round(float(demand), 2),
+    bool(congested),
+)
+
+previous_signature = st.session_state.get(
+    "tejas_previous_signature"
+)
+
+# Record events only when the state changes
+if previous_signature is None:
+    st.session_state["tejas_event_log"].append({
+        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "Event": "Monitoring Started",
+        "Details": (
+            f"Mode: {'Emergency' if emergency else 'Normal'}; "
+            f"Capacity: {capacity:.1f} Mbps; Demand: {demand:.1f} Mbps"
+        ),
+    })
+
+else:
+    old_emergency, old_capacity, old_demand, old_congested = (
+        previous_signature
+    )
+
+    if bool(emergency) != old_emergency:
+        st.session_state["tejas_event_log"].append({
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Event": "Operating Mode Changed",
+            "Details": (
+                f"{'Emergency' if emergency else 'Normal'} mode enabled"
+            ),
+        })
+
+    if round(float(capacity), 2) != old_capacity:
+        st.session_state["tejas_event_log"].append({
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Event": "Capacity Changed",
+            "Details": (
+                f"Capacity changed from {old_capacity:.1f} "
+                f"to {capacity:.1f} Mbps"
+            ),
+        })
+
+    if bool(congested) != old_congested:
+        event_name = (
+            "Network Congestion Detected"
+            if congested
+            else "Network Congestion Cleared"
+        )
+
+        st.session_state["tejas_event_log"].append({
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Event": event_name,
+            "Details": (
+                f"Demand: {demand:.1f} Mbps; "
+                f"Capacity: {capacity:.1f} Mbps"
+            ),
+        })
+
+# Store the current state for comparison on the next rerun
+st.session_state["tejas_previous_signature"] = current_signature
+
+# Keep the most recent 100 events
+st.session_state["tejas_event_log"] = (
+    st.session_state["tejas_event_log"][-100:]
+)
+
+event_df = pd.DataFrame(
+    st.session_state["tejas_event_log"]
+)
+
+st.subheader("Recent Network Events")
+
+if not event_df.empty:
+    st.dataframe(
+        event_df.iloc[::-1],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    event_csv = event_df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        "📥 Download Event Audit Log (CSV)",
+        data=event_csv,
+        file_name="tejas_network_event_audit.csv",
+        mime="text/csv",
+        key="download_tejas_event_log",
+    )
+else:
+    st.info("No network events have been recorded yet.")
+
+if st.button("Clear Event History", key="clear_tejas_event_log"):
+    st.session_state["tejas_event_log"] = []
+    st.session_state.pop("tejas_previous_signature", None)
+    st.rerun()
+
+st.caption(
+    "This audit log records observed application-state changes "
+    "during the current Streamlit session. It is not a persistent "
+    "or tamper-proof production audit system."
+)
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
