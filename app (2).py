@@ -1031,7 +1031,72 @@ else:
         "to see dynamic bandwidth allocation."
     )
 
+# --------------------------------------------------
+# STEP 12: TEJAS LIVE DEMONSTRATION PANEL
+# --------------------------------------------------
+st.divider()
+st.subheader("🎯 TEJAS Live Demonstration Panel")
 
+st.write(
+    "This panel summarizes the current simulated "
+    "hospital network conditions and allocation decisions."
+)
+
+# Determine network status
+if emergency:
+    demo_status = "🚨 Emergency Mode"
+elif congested:
+    demo_status = "🔴 Network Congested"
+elif utilization >= 80:
+    demo_status = "🟡 High Network Load"
+else:
+    demo_status = "🟢 Network Normal"
+
+# Display summary metrics
+demo1, demo2, demo3 = st.columns(3)
+
+demo1.metric(
+    "Network Utilization",
+    f"{utilization:.1f}%"
+)
+
+demo2.metric(
+    "Critical Bandwidth Gain",
+    f"{improvement_percent:+.1f}%"
+)
+
+demo3.metric(
+    "Congestion Probability",
+    f"{probability:.1%}"
+)
+
+st.write(f"**Current Network Status:** {demo_status}")
+
+# Explain the current decision
+if emergency:
+    st.error(
+        "Emergency mode is active. The allocation policy "
+        "prioritizes Remote Surgery, Patient Monitoring, "
+        "and Medical Telemetry."
+    )
+elif congested:
+    st.warning(
+        "Network demand exceeds capacity. Adaptive "
+        "prioritization is active to protect critical "
+        "application bandwidth."
+    )
+else:
+    st.success(
+        "Network demand is within available capacity. "
+        "Normal allocation priorities are active."
+    )
+
+st.caption(
+    "TEJAS demonstration uses synthetic network data. "
+    "Congestion probability is estimated by a Random Forest "
+    "model, while allocation decisions follow a "
+    "rule-based priority policy."
+)
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
