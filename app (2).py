@@ -1097,6 +1097,117 @@ st.caption(
     "model, while allocation decisions follow a "
     "rule-based priority policy."
 )
+
+# --------------------------------------------------
+# STEP 13: AUTOMATED PROTOTYPE VALIDATION
+# --------------------------------------------------
+st.divider()
+st.subheader("🧪 Prototype Validation Tests")
+
+st.write(
+    "Automated checks for simulated bandwidth "
+    "allocation and emergency prioritization."
+)
+
+validation_results = []
+
+# Test 1: Total allocation must not exceed capacity
+total_allocated = sum(allocation.values())
+
+validation_results.append({
+    "Test": "Capacity Constraint",
+    "Result": "PASS" if total_allocated <= capacity + 1e-6 else "FAIL",
+    "Details": f"Allocated {total_allocated:.2f} of {capacity} Mbps"
+})
+
+# Test 2: No application exceeds its requested demand
+demand_limits_valid = all(
+    allocation[name] <= profile[name]["demand"] + 1e-6
+    for name in profile
+)
+
+validation_results.append({
+    "Test": "Application Demand Limits",
+    "Result": "PASS" if demand_limits_valid else "FAIL",
+    "Details": "Allocated bandwidth does not exceed application demand"
+})
+
+# Test 3: Allocation values must be nonnegative
+nonnegative_valid = all(
+    value >= -1e-6 for value in allocation.values()
+)
+
+validation_results.append({
+    "Test": "Nonnegative Allocation",
+    "Result": "PASS" if nonnegative_valid else "FAIL",
+    "Details": "All allocated bandwidth values are nonnegative"
+})
+
+# Test 4: Adaptive policy should not reduce combined
+# critical bandwidth under the current simulated profile
+critical_priority_valid = adaptive_critical >= baseline_critical - 1e-6
+
+validation_results.append({
+    "Test": "Critical Application Prioritization",
+    "Result": "PASS" if critical_priority_valid else "FAIL",
+    "Details": (
+        f"Baseline: {baseline_critical:.2f} Mbps; "
+        f"Adaptive: {adaptive_critical:.2f} Mbps"
+    )
+})
+
+# Test 5: Total unmet demand should be consistent
+expected_unmet = max(0, demand - capacity)
+
+unmet_valid = (
+    abs(adaptive_unmet - expected_unmet) <= 1e-6
+)
+
+validation_results.append({
+    "Test": "Unmet Demand Consistency",
+    "Result": "PASS" if unmet_valid else "FAIL",
+    "Details": (
+        f"Expected: {expected_unmet:.2f} Mbps; "
+        f"Actual: {adaptive_unmet:.2f} Mbps"
+    )
+})
+
+validation_df = pd.DataFrame(validation_results)
+
+st.dataframe(
+    validation_df,
+    use_container_width=True,
+    hide_index=True
+)
+
+passed_tests = int(
+    (validation_df["Result"] == "PASS").sum()
+)
+
+total_tests = len(validation_df)
+
+st.metric(
+    "Validation Tests Passed",
+    f"{passed_tests}/{total_tests}"
+)
+
+if passed_tests == total_tests:
+    st.success(
+        "All allocation validation checks passed "
+        "for the current simulation settings."
+    )
+else:
+    st.error(
+        "One or more allocation checks failed. "
+        "Review the allocation logic before presenting."
+    )
+
+st.caption(
+    "These checks verify basic allocation constraints "
+    "for the selected scenario. They do not validate "
+    "real-world hospital network reliability or "
+    "machine-learning prediction accuracy."
+)
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
