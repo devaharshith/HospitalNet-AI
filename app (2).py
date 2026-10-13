@@ -1351,6 +1351,124 @@ st.caption(
     "latency, and packet-loss rules. High scores do not "
     "establish real-world predictive accuracy."
 )
+
+# ==========================================================
+# STEP 15: NETWORK FAILURE AND RECOVERY SIMULATION
+# ==========================================================
+
+st.divider()
+st.header("🚨 Step 15: Network Failure and Recovery Simulation")
+
+st.write(
+    "Simulate a sudden hospital network failure and observe "
+    "how priority-based bandwidth allocation responds."
+)
+
+failure_capacity = st.slider(
+    "Normal Network Capacity (Mbps)",
+    min_value=20,
+    max_value=100,
+    value=60,
+    step=10,
+    key="failure_normal_capacity"
+)
+
+failure_drop = st.slider(
+    "Capacity Reduction During Failure (%)",
+    min_value=10,
+    max_value=90,
+    value=60,
+    step=10,
+    key="failure_capacity_drop"
+)
+
+normal_capacity = float(failure_capacity)
+failed_capacity = normal_capacity * (1 - failure_drop / 100)
+recovered_capacity = normal_capacity
+
+# Use the current hospital traffic profile
+failure_demand = float(demand)
+
+failure_stages = [
+    ("Normal", normal_capacity),
+    ("Network Failure", failed_capacity),
+    ("Recovery", recovered_capacity),
+]
+
+failure_results = []
+
+critical_apps = ["Remote Surgery", "Patient Monitoring"]
+
+for stage, stage_capacity in failure_stages:
+    stage_baseline = allocate(profile, stage_capacity)
+
+    stage_profile = {
+        app: {
+            "demand": details["demand"],
+            "weight": (
+                10 if app == "Remote Surgery"
+                else 8 if app == "Patient Monitoring"
+                else details["weight"]
+            )
+        }
+        for app, details in profile.items()
+    }
+
+    stage_adaptive = allocate(stage_profile, stage_capacity)
+
+    baseline_critical = sum(
+        stage_baseline.get(app, 0)
+        for app in critical_apps
+    )
+
+    adaptive_critical = sum(
+        stage_adaptive.get(app, 0)
+        for app in critical_apps
+    )
+
+    failure_results.append({
+        "Stage": stage,
+        "Capacity (Mbps)": round(stage_capacity, 2),
+        "Demand (Mbps)": round(failure_demand, 2),
+        "Baseline Critical (Mbps)": round(baseline_critical, 2),
+        "Priority Critical (Mbps)": round(adaptive_critical, 2),
+        "Unmet Demand (Mbps)": round(
+            max(0, failure_demand - stage_capacity), 2
+        ),
+    })
+
+failure_df = pd.DataFrame(failure_results)
+
+st.subheader("Network Failure Timeline")
+st.dataframe(failure_df, use_container_width=True, hide_index=True)
+
+chart_df = failure_df.melt(
+    id_vars="Stage",
+    value_vars=[
+        "Baseline Critical (Mbps)",
+        "Priority Critical (Mbps)"
+    ],
+    var_name="Allocation Policy",
+    value_name="Critical Bandwidth (Mbps)"
+)
+
+fig_failure = px.bar(
+    chart_df,
+    x="Stage",
+    y="Critical Bandwidth (Mbps)",
+    color="Allocation Policy",
+    barmode="group",
+    title="Critical Hospital Bandwidth During Failure and Recovery"
+)
+
+st.plotly_chart(fig_failure, use_container_width=True)
+
+st.info(
+    "Simulation only: this demonstrates a software allocation policy. "
+    "It does not control real hospital routers or guarantee real-time "
+    "network recovery."
+)
+
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
