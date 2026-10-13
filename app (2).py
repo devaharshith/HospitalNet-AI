@@ -1582,6 +1582,72 @@ st.info(
     "It does not send real emergency notifications, change router settings, "
     "or restore an actual hospital network."
 )
+
+# ==========================================================
+# STEP 17: NETWORK PERFORMANCE REPORT
+# ==========================================================
+
+st.divider()
+st.header("📊 Step 17: Network Performance Report")
+
+st.write(
+    "Review the current simulated hospital network performance "
+    "and download a report for analysis."
+)
+
+# Collect current network metrics
+report_metrics = {
+    "Metric": [
+        "Operating Mode",
+        "Total Bandwidth Demand (Mbps)",
+        "Available Bandwidth (Mbps)",
+        "Unmet Demand (Mbps)",
+        "Network Utilization (%)",
+        "Estimated Latency (ms)",
+        "Estimated Packet Loss (%)",
+        "ML Congestion Probability (%)",
+        "Baseline Critical Bandwidth (Mbps)",
+        "Priority Critical Bandwidth (Mbps)",
+        "Critical Bandwidth Improvement (Mbps)",
+        "Network Status",
+    ],
+    "Value": [
+        "Emergency" if emergency else "Normal",
+        round(float(demand), 2),
+        round(float(capacity), 2),
+        round(float(unmet_demand), 2),
+        round(float(utilization), 2),
+        round(float(latency), 2),
+        round(float(loss), 2),
+        round(float(probability) * 100, 2),
+        round(float(baseline_critical), 2),
+        round(float(adaptive_critical), 2),
+        round(float(adaptive_critical - baseline_critical), 2),
+        "Congested" if congested else "Within Capacity",
+    ],
+}
+
+report_df = pd.DataFrame(report_metrics)
+
+st.subheader("Current Network Summary")
+st.dataframe(report_df, use_container_width=True, hide_index=True)
+
+# Create a downloadable CSV report
+report_csv = report_df.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    label="📥 Download Network Performance Report (CSV)",
+    data=report_csv,
+    file_name="tejas_network_performance_report.csv",
+    mime="text/csv",
+    key="download_tejas_report",
+)
+st.caption(
+    "Report values are generated from the current prototype simulation. "
+    "ML congestion probability is a model output, not a guarantee. "
+    "Latency and packet loss are estimated values, not live measurements."
+)
+
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
