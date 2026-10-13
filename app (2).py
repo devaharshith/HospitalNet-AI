@@ -669,6 +669,118 @@ st.caption(
 )
 
 # --------------------------------------------------
+# AUTOMATED NETWORK SCENARIO TESTING
+# --------------------------------------------------
+st.subheader("🧪 Automated Network Scenario Testing")
+
+scenarios = [
+    ("Normal Network", 100, False),
+    ("Network Congestion", 30, False),
+    ("Hospital Emergency", 60, True)
+]
+
+scenario_results = []
+
+for scenario_name, scenario_capacity, scenario_emergency in scenarios:
+
+    scenario_profile = {
+        name: item.copy()
+        for name, item in (
+            EMERGENCY if scenario_emergency else NORMAL
+        ).items()
+    }
+
+    scenario_demand = sum(
+        item["demand"] for item in scenario_profile.values()
+    )
+
+    scenario_congested = scenario_demand > scenario_capacity
+
+    scenario_baseline = {
+        name: {
+            "demand": item["demand"],
+            "weight": weight
+        }
+        for (name, item), weight in zip(
+            scenario_profile.items(),
+            [5, 4, 3, 2, 1]
+        )
+    }
+
+    if scenario_congested or scenario_emergency:
+        for name, weight in zip(
+            scenario_profile,
+            [10, 8, 5, 3, 1]
+        ):
+            scenario_profile[name]["weight"] = weight
+
+    base_alloc = allocate(
+        scenario_baseline, scenario_capacity
+    )
+
+    adaptive_alloc = allocate(
+        scenario_profile, scenario_capacity
+    )
+
+    base_critical = sum(
+        base_alloc[name] for name in critical_apps
+    )
+
+    adaptive_critical_scenario = sum(
+        adaptive_alloc[name] for name in critical_apps
+    )
+
+    improvement = (
+        (adaptive_critical_scenario - base_critical)
+        / base_critical * 100
+        if base_critical > 0 else 0
+    )
+
+    scenario_results.append({
+        "Scenario": scenario_name,
+        "Capacity (Mbps)": scenario_capacity,
+        "Demand (Mbps)": scenario_demand,
+        "Utilization (%)": round(
+            100 * scenario_demand / scenario_capacity, 1
+        ),
+        "Baseline Critical (Mbps)": round(
+            base_critical, 2
+        ),
+        "Adaptive Critical (Mbps)": round(
+            adaptive_critical_scenario, 2
+        ),
+        "Improvement (%)": round(improvement, 1)
+    })
+
+scenario_df = pd.DataFrame(scenario_results)
+
+st.dataframe(
+    scenario_df,
+    use_container_width=True,
+    hide_index=True
+)
+
+scenario_fig = px.bar(
+    scenario_df,
+    x="Scenario",
+    y=[
+        "Baseline Critical (Mbps)",
+        "Adaptive Critical (Mbps)"
+    ],
+    barmode="group",
+    title="Critical Application Bandwidth Across Scenarios"
+)
+
+st.plotly_chart(
+    scenario_fig,
+    use_container_width=True
+)
+
+st.caption(
+    "Results are based on simulated application demands "
+    "and priority-weighted bandwidth allocation."
+)
+# --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
 st.divider()
