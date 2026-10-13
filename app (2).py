@@ -780,6 +780,112 @@ st.caption(
     "Results are based on simulated application demands "
     "and priority-weighted bandwidth allocation."
 )
+
+# --------------------------------------------------
+# STEP 10: NETWORK TRAFFIC SIMULATION
+# --------------------------------------------------
+st.subheader("📈 Network Traffic Simulation")
+
+st.write(
+    "Simulate changing hospital network demand "
+    "and identify congestion periods."
+)
+
+simulation_steps = st.slider(
+    "Number of simulation steps",
+    min_value=10,
+    max_value=100,
+    value=20,
+    step=10
+)
+
+if st.button("▶ Generate Network Traffic"):
+
+    rng = np.random.default_rng()
+
+    traffic = rng.normal(
+        loc=demand,
+        scale=12,
+        size=simulation_steps
+    )
+
+    traffic = np.maximum(traffic, 0)
+
+    traffic_df = pd.DataFrame({
+        "Time Step": range(1, simulation_steps + 1),
+        "Demand (Mbps)": traffic,
+        "Capacity (Mbps)": [capacity] * simulation_steps
+    })
+
+    traffic_df["Congested"] = (
+        traffic_df["Demand (Mbps)"] > capacity
+    )
+
+    st.session_state["traffic_df"] = traffic_df
+
+if "traffic_df" in st.session_state:
+
+    traffic_df = st.session_state["traffic_df"]
+
+    traffic_chart = px.line(
+        traffic_df,
+        x="Time Step",
+        y=["Demand (Mbps)", "Capacity (Mbps)"],
+        markers=True,
+        title="Simulated Hospital Network Traffic"
+    )
+
+    st.plotly_chart(
+        traffic_chart,
+        use_container_width=True
+    )
+
+    congestion_count = int(
+        traffic_df["Congested"].sum()
+    )
+
+    total_steps = len(traffic_df)
+
+    congestion_percentage = (
+        congestion_count / total_steps * 100
+        if total_steps else 0
+    )
+
+    a, b, c = st.columns(3)
+
+    a.metric(
+        "Simulation Steps",
+        total_steps
+    )
+
+    b.metric(
+        "Congested Steps",
+        congestion_count
+    )
+
+    c.metric(
+        "Congestion Frequency",
+        f"{congestion_percentage:.1f}%"
+    )
+
+    if congestion_count > 0:
+        st.warning(
+            f"⚠️ Congestion occurred during "
+            f"{congestion_count} of {total_steps} "
+            f"simulated time steps."
+        )
+    else:
+        st.success(
+            "✅ No congestion detected during "
+            "this simulation."
+        )
+
+st.caption(
+    "Synthetic traffic simulation only. "
+    "This graph does not represent live hospital "
+    "network measurements."
+)
+
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
