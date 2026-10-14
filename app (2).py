@@ -2135,6 +2135,132 @@ st.caption(
     "rule-based, and any improvement depends on the "
     "allocation function and available bandwidth."
 )
+
+# ==========================================================
+# STEP 22: NETWORK CAPACITY PLANNING AND WHAT-IF ANALYSIS
+# ==========================================================
+
+st.divider()
+st.header("📈 Step 22: Network Capacity Planning")
+
+st.write(
+    "Explore how different bandwidth capacities affect "
+    "hospital network performance."
+)
+
+# Select operating scenario
+planning_mode = st.selectbox(
+    "Select Network Scenario",
+    ["Normal Operation", "Hospital Emergency"],
+    key="planning_mode"
+)
+
+planning_profile = (
+    NORMAL if planning_mode == "Normal Operation" else EMERGENCY
+)
+
+planning_demand = sum(
+    item["demand"] for item in planning_profile.values()
+)
+
+# Interactive capacity slider
+planning_capacity = st.slider(
+    "Available Network Capacity (Mbps)",
+    min_value=10,
+    max_value=150,
+    value=60,
+    step=5,
+    key="planning_capacity"
+)
+
+planning_unmet = max(
+    0, planning_demand - planning_capacity
+)
+
+planning_utilization = (
+    planning_demand / planning_capacity
+) * 100
+
+# Display metrics
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "Required Bandwidth",
+        f"{planning_demand} Mbps"
+    )
+
+with col2:
+    st.metric(
+        "Available Capacity",
+        f"{planning_capacity} Mbps"
+    )
+
+with col3:
+    st.metric(
+        "Unmet Demand",
+        f"{planning_unmet} Mbps"
+    )
+
+# Generate capacity planning data
+capacity_values = list(range(10, 151, 5))
+
+planning_rows = []
+
+for cap in capacity_values:
+    unmet = max(0, planning_demand - cap)
+
+    planning_rows.append({
+        "Capacity (Mbps)": cap,
+        "Demand (Mbps)": planning_demand,
+        "Unmet Demand (Mbps)": unmet,
+    })
+
+planning_df = pd.DataFrame(planning_rows)
+
+# Create chart
+fig_planning = px.line(
+    planning_df,
+    x="Capacity (Mbps)",
+    y=[
+        "Demand (Mbps)",
+        "Unmet Demand (Mbps)"
+    ],
+    title="Capacity Planning: Demand vs Unmet Bandwidth"
+)
+
+fig_planning.add_vline(
+    x=planning_capacity,
+    line_dash="dash",
+    annotation_text="Selected Capacity"
+)
+
+st.plotly_chart(
+    fig_planning,
+    use_container_width=True
+)
+
+# Display recommendation
+st.subheader("Capacity Planning Recommendation")
+
+if planning_capacity >= planning_demand:
+    st.success(
+        "The selected capacity can support the simulated "
+        "total bandwidth demand."
+    )
+else:
+    additional_capacity = planning_demand - planning_capacity
+
+    st.warning(
+        f"An additional {additional_capacity:.1f} Mbps "
+        "is required to meet the simulated demand."
+    )
+
+st.caption(
+    "This planning tool uses fixed simulated application demands. "
+    "It does not account for real-world traffic bursts, "
+    "redundancy, or service-level guarantees."
+)
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
