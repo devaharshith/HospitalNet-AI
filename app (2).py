@@ -2261,6 +2261,107 @@ st.caption(
     "It does not account for real-world traffic bursts, "
     "redundancy, or service-level guarantees."
 )
+
+# ==========================================================
+# STEP 23: NETWORK PERFORMANCE STRESS TESTING
+# ==========================================================
+
+st.divider()
+st.header("🔥 Step 23: Network Performance Stress Testing")
+
+st.write(
+    "Evaluate simulated network performance as traffic "
+    "demand increases."
+)
+
+stress_capacity = st.slider(
+    "Stress Test Network Capacity (Mbps)",
+    min_value=20,
+    max_value=150,
+    value=60,
+    step=10,
+    key="stress_capacity"
+)
+
+stress_levels = np.arange(0.5, 2.01, 0.1)
+
+stress_rows = []
+
+for load_factor in stress_levels:
+    stress_demand = demand * load_factor
+
+    stress_unmet = max(
+        0, stress_demand - stress_capacity
+    )
+
+    stress_unmet_fraction = (
+        stress_unmet / stress_demand
+        if stress_demand > 0 else 0
+    )
+
+    stress_latency = 15 + 150 * stress_unmet_fraction
+    stress_loss = 15 * stress_unmet_fraction
+
+    stress_rows.append({
+        "Traffic Load (%)": round(load_factor * 100),
+        "Demand (Mbps)": round(stress_demand, 2),
+        "Latency (ms)": round(stress_latency, 2),
+        "Packet Loss (%)": round(stress_loss, 2),
+        "Congested": stress_demand > stress_capacity,
+    })
+
+stress_df = pd.DataFrame(stress_rows)
+
+st.subheader("Stress Test Results")
+
+st.dataframe(
+    stress_df,
+    use_container_width=True,
+    hide_index=True
+)
+
+st.subheader("Latency Under Increasing Traffic")
+
+fig_stress_latency = px.line(
+    stress_df,
+    x="Traffic Load (%)",
+    y="Latency (ms)",
+    markers=True,
+    title="Estimated Latency vs Traffic Load"
+)
+
+st.plotly_chart(
+    fig_stress_latency,
+    use_container_width=True
+)
+
+st.subheader("Packet Loss Under Increasing Traffic")
+
+fig_stress_loss = px.line(
+    stress_df,
+    x="Traffic Load (%)",
+    y="Packet Loss (%)",
+    markers=True,
+    title="Estimated Packet Loss vs Traffic Load"
+)
+
+st.plotly_chart(
+    fig_stress_loss,
+    use_container_width=True
+)
+
+congested_cases = int(stress_df["Congested"].sum())
+
+st.metric(
+    "Congested Stress Test Cases",
+    f"{congested_cases} / {len(stress_df)}"
+)
+
+st.caption(
+    "Stress testing uses simulated traffic loads and formula-based "
+    "latency and packet loss. It does not generate actual network "
+    "traffic or measure physical network performance."
+)
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
