@@ -2362,6 +2362,67 @@ st.caption(
     "latency and packet loss. It does not generate actual network "
     "traffic or measure physical network performance."
 )
+
+# ==========================================================
+# STEP 24: FINAL DASHBOARD OVERVIEW
+# ==========================================================
+
+st.divider()
+st.header("🏥 TEJAS HospitalNet AI — Executive Dashboard")
+
+st.write(
+    "An overview of simulated hospital network performance "
+    "and intelligent bandwidth management."
+)
+
+overview_col1, overview_col2, overview_col3, overview_col4 = st.columns(4)
+
+with overview_col1:
+    st.metric(
+        "Network Health",
+        f"{network_health_score}/100"
+    )
+
+with overview_col2:
+    st.metric(
+        "Congestion Probability",
+        f"{probability * 100:.1f}%"
+    )
+
+with overview_col3:
+    st.metric(
+        "Critical Bandwidth Gain",
+        f"{adaptive_critical - baseline_critical:.1f} Mbps"
+    )
+
+with overview_col4:
+    st.metric(
+        "Network Status",
+        "Congested" if congested else "Stable"
+    )
+
+st.subheader("Prototype Capabilities")
+
+capabilities = [
+    "AI-Based Congestion Prediction",
+    "Priority-Based Bandwidth Allocation",
+    "Emergency Traffic Prioritization",
+    "Network Failure and Recovery Simulation",
+    "Network Health Monitoring",
+    "Automated Scenario Testing",
+    "Capacity Planning and Stress Testing",
+    "Performance Reports and Event History",
+    "Smart Network Recommendations",
+]
+
+for capability in capabilities:
+    st.write(f"✅ {capability}")
+
+st.info(
+    "TEJAS is a simulated research prototype. "
+    "Congestion prediction uses a synthetic-data ML model, "
+    "while bandwidth allocation and recommendations are rule-based."
+)
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
