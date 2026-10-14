@@ -2003,6 +2003,138 @@ st.caption(
     "metrics. They do not automatically change network equipment or "
     "replace a qualified hospital network administrator."
 )
+
+# ==========================================================
+# STEP 21: INTERACTIVE NETWORK SCENARIO COMPARISON
+# ==========================================================
+
+st.divider()
+st.header("📊 Step 21: Interactive Network Scenario Comparison")
+
+st.write(
+    "Compare simulated hospital network scenarios "
+    "using the same allocation policies."
+)
+
+scenario_configs = [
+    ("Normal Operation", 100, False),
+    ("Heavy Congestion", 30, False),
+    ("Hospital Emergency", 60, True),
+    ("Network Failure", 20, True),
+]
+
+comparison_rows = []
+
+for scenario_name, scenario_capacity, scenario_emergency in scenario_configs:
+
+    scenario_profile = (
+        EMERGENCY if scenario_emergency else NORMAL
+    )
+
+    scenario_demand = sum(
+        item["demand"] for item in scenario_profile.values()
+    )
+
+    # Baseline policy
+    baseline_profile = {
+        app: {
+            "demand": details["demand"],
+            "weight": [5, 4, 3, 2, 1][i]
+        }
+        for i, (app, details) in enumerate(scenario_profile.items())
+    }
+
+    # Priority policy
+    priority_profile = {
+        app: {
+            "demand": details["demand"],
+            "weight": [10, 8, 5, 3, 1][i]
+        }
+        for i, (app, details) in enumerate(scenario_profile.items())
+    }
+
+    baseline_alloc = allocate(
+        baseline_profile, scenario_capacity
+    )
+
+    priority_alloc = allocate(
+        priority_profile, scenario_capacity
+    )
+
+    critical_apps = [
+        "Remote Surgery",
+        "Patient Monitoring"
+    ]
+
+    baseline_critical_bw = sum(
+        baseline_alloc.get(app, 0)
+        for app in critical_apps
+    )
+
+    priority_critical_bw = sum(
+        priority_alloc.get(app, 0)
+        for app in critical_apps
+    )
+
+    comparison_rows.append({
+        "Scenario": scenario_name,
+        "Capacity (Mbps)": scenario_capacity,
+        "Demand (Mbps)": scenario_demand,
+        "Unmet Demand (Mbps)": max(
+            0, scenario_demand - scenario_capacity
+        ),
+        "Baseline Critical (Mbps)": round(
+            baseline_critical_bw, 2
+        ),
+        "Priority Critical (Mbps)": round(
+            priority_critical_bw, 2
+        ),
+        "Critical Gain (Mbps)": round(
+            priority_critical_bw - baseline_critical_bw, 2
+        ),
+    })
+
+scenario_comparison_df = pd.DataFrame(comparison_rows)
+
+st.subheader("Scenario Comparison Table")
+
+st.dataframe(
+    scenario_comparison_df,
+    use_container_width=True,
+    hide_index=True
+)
+
+st.subheader("Critical Bandwidth Comparison")
+
+scenario_chart_df = scenario_comparison_df.melt(
+    id_vars="Scenario",
+    value_vars=[
+        "Baseline Critical (Mbps)",
+        "Priority Critical (Mbps)"
+    ],
+    var_name="Policy",
+    value_name="Bandwidth (Mbps)"
+)
+
+fig_scenarios = px.bar(
+    scenario_chart_df,
+    x="Scenario",
+    y="Bandwidth (Mbps)",
+    color="Policy",
+    barmode="group",
+    title="Baseline vs Priority-Based Allocation"
+)
+
+st.plotly_chart(
+    fig_scenarios,
+    use_container_width=True
+)
+
+st.caption(
+    "All results are simulated. The priority policy is "
+    "rule-based, and any improvement depends on the "
+    "allocation function and available bandwidth."
+)
 # --------------------------------------------------
 # PROTOTYPE DISCLAIMER
 # --------------------------------------------------
