@@ -877,3 +877,6 @@ if "traffic_df" in st.session_state:
         )
     else:
         st.succes
+st.divider()
+
+dynamic_demands = show_dynamic_hospital_dashboard()
