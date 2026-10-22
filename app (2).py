@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from sklearn.ensemble import RandomForestClassifier
+from hospital_dynamic import show_dynamic_hospital_dashboard
 
 # --------------------------------------------------
 # PAGE CONFIGURATION
