@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from sklearn.ensemble import RandomForestClassifier
-from hospital_dynamic import show_dynamic_hospital_dashboard
 
 # --------------------------------------------------
 # PAGE CONFIGURATION
@@ -876,7 +875,1562 @@ if "traffic_df" in st.session_state:
             f"simulated time steps."
         )
     else:
-        st.succes
+        st.success(
+            "✅ No congestion detected during "
+            "this simulation."
+        )
+
+st.caption(
+    "Synthetic traffic simulation only. "
+    "This graph does not represent live hospital "
+    "network measurements."
+)
+
+# --------------------------------------------------
+# STEP 11: DYNAMIC BANDWIDTH ALLOCATION
+# --------------------------------------------------
+st.subheader("⚡ Dynamic Bandwidth Allocation Simulation")
+
+if "traffic_df" in st.session_state:
+
+    traffic_data = st.session_state["traffic_df"]
+
+    dynamic_results = []
+
+    for _, traffic_row in traffic_data.iterrows():
+
+        current_demand = float(
+            traffic_row["Demand (Mbps)"]
+        )
+
+        current_capacity = float(
+            traffic_row["Capacity (Mbps)"]
+        )
+
+        # Scale application demands proportionally
+        demand_scale = (
+            current_demand / demand if demand > 0 else 0
+        )
+
+        current_profile = {
+            name: {
+                "demand": item["demand"] * demand_scale,
+                "weight": item["weight"]
+            }
+            for name, item in (
+                EMERGENCY if emergency else NORMAL
+            ).items()
+        }
+
+        baseline_profile_step = {
+            name: {
+                "demand": item["demand"],
+                "weight": weight
+            }
+            for (name, item), weight in zip(
+                current_profile.items(),
+                [5, 4, 3, 2, 1]
+            )
+        }
+
+        if current_demand > current_capacity or emergency:
+            for name, weight in zip(
+                current_profile,
+                [10, 8, 5, 3, 1]
+            ):
+                current_profile[name]["weight"] = weight
+
+        baseline_step = allocate(
+            baseline_profile_step,
+            current_capacity
+        )
+
+        adaptive_step = allocate(
+            current_profile,
+            current_capacity
+        )
+
+        baseline_critical_step = sum(
+            baseline_step[name]
+            for name in critical_apps
+        )
+
+        adaptive_critical_step = sum(
+            adaptive_step[name]
+            for name in critical_apps
+        )
+
+        dynamic_results.append({
+            "Time Step": int(traffic_row["Time Step"]),
+            "Baseline Critical (Mbps)":
+                baseline_critical_step,
+            "Adaptive Critical (Mbps)":
+                adaptive_critical_step
+        })
+
+    dynamic_df = pd.DataFrame(dynamic_results)
+
+    dynamic_chart = px.line(
+        dynamic_df,
+        x="Time Step",
+        y=[
+            "Baseline Critical (Mbps)",
+            "Adaptive Critical (Mbps)"
+        ],
+        markers=True,
+        title="Critical Bandwidth Allocation Over Time"
+    )
+
+    st.plotly_chart(
+        dynamic_chart,
+        use_container_width=True
+    )
+
+    total_baseline = dynamic_df[
+        "Baseline Critical (Mbps)"
+    ].sum()
+
+    total_adaptive = dynamic_df[
+        "Adaptive Critical (Mbps)"
+    ].sum()
+
+    gain = total_adaptive - total_baseline
+
+    gain_percent = (
+        gain / total_baseline * 100
+        if total_baseline > 0 else 0
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Average Baseline Critical Bandwidth",
+        f"{dynamic_df['Baseline Critical (Mbps)'].mean():.2f} Mbps"
+    )
+
+    col2.metric(
+        "Average Adaptive Critical Bandwidth",
+        f"{dynamic_df['Adaptive Critical (Mbps)'].mean():.2f} Mbps"
+    )
+
+    col3.metric(
+        "Relative Critical Bandwidth Gain",
+        f"{gain_percent:+.1f}%"
+    )
+
+    st.caption(
+        "Application demands are proportionally scaled "
+        "using synthetic traffic. Adaptive allocation "
+        "changes priority weights during congestion "
+        "or emergency mode. These are simulated results."
+    )
+
+else:
+    st.info(
+        "Generate network traffic in Step 10 first "
+        "to see dynamic bandwidth allocation."
+    )
+
+# --------------------------------------------------
+# STEP 12: TEJAS LIVE DEMONSTRATION PANEL
+# --------------------------------------------------
+st.divider()
+st.subheader("🎯 TEJAS Live Demonstration Panel")
+
+st.write(
+    "This panel summarizes the current simulated "
+    "hospital network conditions and allocation decisions."
+)
+
+# Determine network status
+if emergency:
+    demo_status = "🚨 Emergency Mode"
+elif congested:
+    demo_status = "🔴 Network Congested"
+elif utilization >= 80:
+    demo_status = "🟡 High Network Load"
+else:
+    demo_status = "🟢 Network Normal"
+
+# Display summary metrics
+demo1, demo2, demo3 = st.columns(3)
+
+demo1.metric(
+    "Network Utilization",
+    f"{utilization:.1f}%"
+)
+
+demo2.metric(
+    "Critical Bandwidth Gain",
+    f"{improvement_percent:+.1f}%"
+)
+
+demo3.metric(
+    "Congestion Probability",
+    f"{probability:.1%}"
+)
+
+st.write(f"**Current Network Status:** {demo_status}")
+
+# Explain the current decision
+if emergency:
+    st.error(
+        "Emergency mode is active. The allocation policy "
+        "prioritizes Remote Surgery, Patient Monitoring, "
+        "and Medical Telemetry."
+    )
+elif congested:
+    st.warning(
+        "Network demand exceeds capacity. Adaptive "
+        "prioritization is active to protect critical "
+        "application bandwidth."
+    )
+else:
+    st.success(
+        "Network demand is within available capacity. "
+        "Normal allocation priorities are active."
+    )
+
+st.caption(
+    "TEJAS demonstration uses synthetic network data. "
+    "Congestion probability is estimated by a Random Forest "
+    "model, while allocation decisions follow a "
+    "rule-based priority policy."
+)
+
+# --------------------------------------------------
+# STEP 13: AUTOMATED PROTOTYPE VALIDATION
+# --------------------------------------------------
+st.divider()
+st.subheader("🧪 Prototype Validation Tests")
+
+st.write(
+    "Automated checks for simulated bandwidth "
+    "allocation and emergency prioritization."
+)
+
+validation_results = []
+
+# Test 1: Total allocation must not exceed capacity
+total_allocated = sum(allocation.values())
+
+validation_results.append({
+    "Test": "Capacity Constraint",
+    "Result": "PASS" if total_allocated <= capacity + 1e-6 else "FAIL",
+    "Details": f"Allocated {total_allocated:.2f} of {capacity} Mbps"
+})
+
+# Test 2: No application exceeds its requested demand
+demand_limits_valid = all(
+    allocation[name] <= profile[name]["demand"] + 1e-6
+    for name in profile
+)
+
+validation_results.append({
+    "Test": "Application Demand Limits",
+    "Result": "PASS" if demand_limits_valid else "FAIL",
+    "Details": "Allocated bandwidth does not exceed application demand"
+})
+
+# Test 3: Allocation values must be nonnegative
+nonnegative_valid = all(
+    value >= -1e-6 for value in allocation.values()
+)
+
+validation_results.append({
+    "Test": "Nonnegative Allocation",
+    "Result": "PASS" if nonnegative_valid else "FAIL",
+    "Details": "All allocated bandwidth values are nonnegative"
+})
+
+# Test 4: Adaptive policy should not reduce combined
+# critical bandwidth under the current simulated profile
+critical_priority_valid = adaptive_critical >= baseline_critical - 1e-6
+
+validation_results.append({
+    "Test": "Critical Application Prioritization",
+    "Result": "PASS" if critical_priority_valid else "FAIL",
+    "Details": (
+        f"Baseline: {baseline_critical:.2f} Mbps; "
+        f"Adaptive: {adaptive_critical:.2f} Mbps"
+    )
+})
+
+# Test 5: Total unmet demand should be consistent
+expected_unmet = max(0, demand - capacity)
+
+unmet_valid = (
+    abs(adaptive_unmet - expected_unmet) <= 1e-6
+)
+
+validation_results.append({
+    "Test": "Unmet Demand Consistency",
+    "Result": "PASS" if unmet_valid else "FAIL",
+    "Details": (
+        f"Expected: {expected_unmet:.2f} Mbps; "
+        f"Actual: {adaptive_unmet:.2f} Mbps"
+    )
+})
+
+validation_df = pd.DataFrame(validation_results)
+
+st.dataframe(
+    validation_df,
+    use_container_width=True,
+    hide_index=True
+)
+
+passed_tests = int(
+    (validation_df["Result"] == "PASS").sum()
+)
+
+total_tests = len(validation_df)
+
+st.metric(
+    "Validation Tests Passed",
+    f"{passed_tests}/{total_tests}"
+)
+
+if passed_tests == total_tests:
+    st.success(
+        "All allocation validation checks passed "
+        "for the current simulation settings."
+    )
+else:
+    st.error(
+        "One or more allocation checks failed. "
+        "Review the allocation logic before presenting."
+    )
+
+st.caption(
+    "These checks verify basic allocation constraints "
+    "for the selected scenario. They do not validate "
+    "real-world hospital network reliability or "
+    "machine-learning prediction accuracy."
+)
+
+# --------------------------------------------------
+# STEP 14: RANDOM FOREST MODEL EVALUATION
+# --------------------------------------------------
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    confusion_matrix
+)
+
+st.divider()
+st.subheader("🤖 AI Model Performance Evaluation")
+
+st.write(
+    "Evaluate a Random Forest classifier on held-out "
+    "synthetic network scenarios."
+)
+
+@st.cache_data
+def evaluate_synthetic_model():
+    rng = np.random.default_rng(2026)
+    n = 3000
+
+    capacities = rng.integers(10, 101, n)
+    emergencies = rng.integers(0, 2, n)
+
+    demands = np.array([
+        sum(
+            item["demand"] * rng.uniform(0.6, 1.4)
+            for item in (
+                EMERGENCY if e else NORMAL
+            ).values()
+        )
+        for e in emergencies
+    ])
+
+    utilizations = 100 * demands / capacities
+
+    unmet = np.maximum(0, demands - capacities)
+    unmet_fraction = unmet / demands
+
+    latencies = np.clip(
+        15 + 150 * unmet_fraction
+        + rng.normal(0, 5, n),
+        1, 300
+    )
+
+    losses = np.clip(
+        15 * unmet_fraction
+        + rng.normal(0, 0.5, n),
+        0, 30
+    )
+
+    X_eval = pd.DataFrame({
+        "Capacity_Mbps": capacities,
+        "Demand_Mbps": demands,
+        "Utilization_Percent": utilizations,
+        "Latency_ms": latencies,
+        "Packet_Loss_Percent": losses,
+        "Emergency": emergencies
+    })
+
+    y_eval = (
+        (demands > capacities)
+        | (latencies > 100)
+        | (losses > 5)
+    ).astype(int)
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_eval,
+        y_eval,
+        test_size=0.25,
+        random_state=42,
+        stratify=y_eval
+    )
+
+    evaluation_model = RandomForestClassifier(
+        n_estimators=100,
+        max_depth=10,
+        random_state=42,
+        class_weight="balanced"
+    )
+
+    evaluation_model.fit(X_train, y_train)
+    predictions = evaluation_model.predict(X_test)
+
+    metrics = {
+        "Accuracy": accuracy_score(y_test, predictions),
+        "Precision": precision_score(
+            y_test, predictions, zero_division=0
+        ),
+        "Recall": recall_score(
+            y_test, predictions, zero_division=0
+        ),
+        "F1-score": f1_score(
+            y_test, predictions, zero_division=0
+        )
+    }
+
+    matrix = confusion_matrix(
+        y_test, predictions, labels=[0, 1]
+    )
+
+    return metrics, matrix, len(y_test)
+
+
+metrics, matrix, test_size = evaluate_synthetic_model()
+
+m1, m2, m3, m4 = st.columns(4)
+
+m1.metric("Accuracy", f"{metrics['Accuracy']:.1%}")
+m2.metric("Precision", f"{metrics['Precision']:.1%}")
+m3.metric("Recall", f"{metrics['Recall']:.1%}")
+m4.metric("F1-score", f"{metrics['F1-score']:.1%}")
+
+st.caption(
+    f"Evaluation uses {test_size} held-out synthetic test cases. "
+    "These metrics evaluate a separately trained model using "
+    "the same synthetic-data generation approach; they are "
+    "not measurements of real hospital network performance."
+)
+
+st.markdown("#### Confusion Matrix")
+
+confusion_df = pd.DataFrame(
+    matrix,
+    index=["Actual: No Congestion", "Actual: Congestion"],
+    columns=["Predicted: No Congestion", "Predicted: Congestion"]
+)
+
+st.dataframe(
+    confusion_df,
+    use_container_width=True
+)
+
+st.caption(
+    "Synthetic labels are generated from simulated demand, "
+    "latency, and packet-loss rules. High scores do not "
+    "establish real-world predictive accuracy."
+)
+
+# ==========================================================
+# STEP 15: NETWORK FAILURE AND RECOVERY SIMULATION
+# ==========================================================
+
+st.divider()
+st.header("🚨 Step 15: Network Failure and Recovery Simulation")
+
+st.write(
+    "Simulate a sudden hospital network failure and observe "
+    "how priority-based bandwidth allocation responds."
+)
+
+failure_capacity = st.slider(
+    "Normal Network Capacity (Mbps)",
+    min_value=20,
+    max_value=100,
+    value=60,
+    step=10,
+    key="failure_normal_capacity"
+)
+
+failure_drop = st.slider(
+    "Capacity Reduction During Failure (%)",
+    min_value=10,
+    max_value=90,
+    value=60,
+    step=10,
+    key="failure_capacity_drop"
+)
+
+normal_capacity = float(failure_capacity)
+failed_capacity = normal_capacity * (1 - failure_drop / 100)
+recovered_capacity = normal_capacity
+
+# Use the current hospital traffic profile
+failure_demand = float(demand)
+
+failure_stages = [
+    ("Normal", normal_capacity),
+    ("Network Failure", failed_capacity),
+    ("Recovery", recovered_capacity),
+]
+
+failure_results = []
+
+critical_apps = ["Remote Surgery", "Patient Monitoring"]
+
+for stage, stage_capacity in failure_stages:
+    stage_baseline = allocate(profile, stage_capacity)
+
+    stage_profile = {
+        app: {
+            "demand": details["demand"],
+            "weight": (
+                10 if app == "Remote Surgery"
+                else 8 if app == "Patient Monitoring"
+                else details["weight"]
+            )
+        }
+        for app, details in profile.items()
+    }
+
+    stage_adaptive = allocate(stage_profile, stage_capacity)
+
+    baseline_critical = sum(
+        stage_baseline.get(app, 0)
+        for app in critical_apps
+    )
+
+    adaptive_critical = sum(
+        stage_adaptive.get(app, 0)
+        for app in critical_apps
+    )
+
+    failure_results.append({
+        "Stage": stage,
+        "Capacity (Mbps)": round(stage_capacity, 2),
+        "Demand (Mbps)": round(failure_demand, 2),
+        "Baseline Critical (Mbps)": round(baseline_critical, 2),
+        "Priority Critical (Mbps)": round(adaptive_critical, 2),
+        "Unmet Demand (Mbps)": round(
+            max(0, failure_demand - stage_capacity), 2
+        ),
+    })
+
+failure_df = pd.DataFrame(failure_results)
+
+st.subheader("Network Failure Timeline")
+st.dataframe(failure_df, use_container_width=True, hide_index=True)
+
+chart_df = failure_df.melt(
+    id_vars="Stage",
+    value_vars=[
+        "Baseline Critical (Mbps)",
+        "Priority Critical (Mbps)"
+    ],
+    var_name="Allocation Policy",
+    value_name="Critical Bandwidth (Mbps)"
+)
+
+fig_failure = px.bar(
+    chart_df,
+    x="Stage",
+    y="Critical Bandwidth (Mbps)",
+    color="Allocation Policy",
+    barmode="group",
+    title="Critical Hospital Bandwidth During Failure and Recovery"
+)
+
+st.plotly_chart(fig_failure, use_container_width=True)
+
+st.info(
+    "Simulation only: this demonstrates a software allocation policy. "
+    "It does not control real hospital routers or guarantee real-time "
+    "network recovery."
+)
+
+# ==========================================================
+# STEP 16: EMERGENCY ALERT AND RECOVERY RECOMMENDATIONS
+# ==========================================================
+
+st.divider()
+st.header("🚨 Step 16: Emergency Alert and Recovery Recommendations")
+
+st.write(
+    "TEJAS analyses the simulated network failure and recommends "
+    "actions to protect critical hospital applications."
+)
+
+# Read the failure results generated in Step 15
+failure_row = failure_df[
+    failure_df["Stage"] == "Network Failure"
+].iloc[0]
+
+normal_row = failure_df[
+    failure_df["Stage"] == "Normal"
+].iloc[0]
+
+recovery_row = failure_df[
+    failure_df["Stage"] == "Recovery"
+].iloc[0]
+
+failure_capacity_now = float(failure_row["Capacity (Mbps)"])
+failure_demand_now = float(failure_row["Demand (Mbps)"])
+failure_unmet_now = float(failure_row["Unmet Demand (Mbps)"])
+
+baseline_critical_now = float(
+    failure_row["Baseline Critical (Mbps)"]
+)
+
+priority_critical_now = float(
+    failure_row["Priority Critical (Mbps)"]
+)
+
+# Display current simulated failure status
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "Failure Capacity",
+        f"{failure_capacity_now:.1f} Mbps"
+    )
+
+with col2:
+    st.metric(
+        "Unmet Demand",
+        f"{failure_unmet_now:.1f} Mbps"
+    )
+
+with col3:
+    st.metric(
+        "Critical Bandwidth Gain",
+        f"{priority_critical_now - baseline_critical_now:.1f} Mbps"
+    )
+
+# Generate a rule-based recommendation
+if failure_unmet_now > 0:
+    st.error("🚨 SIMULATED NETWORK CONGESTION DETECTED")
+
+    st.subheader("Recommended Actions")
+
+    st.markdown(
+        """
+        1. Prioritize Remote Surgery and Patient Monitoring traffic.
+        2. Reduce or defer non-critical traffic where operationally appropriate.
+        3. Ask the network administrator to investigate the capacity reduction.
+        4. Restore available network capacity and verify critical application connectivity.
+        """
+    )
+
+    if priority_critical_now > baseline_critical_now:
+        st.success(
+            "The simulated priority policy allocates more bandwidth "
+            "to critical applications than the baseline."
+        )
+    else:
+        st.warning(
+            "The priority policy has not increased critical bandwidth "
+            "in this scenario. Review the allocation policy before claiming "
+            "an improvement."
+        )
+
+else:
+    st.success(
+        "No unmet bandwidth demand is detected in the simulated "
+        "failure scenario. Continue monitoring network capacity."
+    )
+
+# Compare the simulated recovery with normal operation
+st.subheader("Recovery Verification")
+
+normal_capacity_now = float(normal_row["Capacity (Mbps)"])
+recovered_capacity_now = float(recovery_row["Capacity (Mbps)"])
+
+if recovered_capacity_now >= normal_capacity_now:
+    st.success(
+        f"Simulated recovery capacity is {recovered_capacity_now:.1f} Mbps. "
+        "It has returned to the normal capacity setting."
+    )
+else:
+    st.warning(
+        "Simulated recovery capacity is below the normal capacity setting. "
+        "Further investigation is recommended."
+    )
+
+st.info(
+    "This is a rule-based software demonstration using simulated data. "
+    "It does not send real emergency notifications, change router settings, "
+    "or restore an actual hospital network."
+)
+
+# ==========================================================
+# STEP 17: NETWORK PERFORMANCE REPORT
+# ==========================================================
+
+st.divider()
+st.header("📊 Step 17: Network Performance Report")
+
+st.write(
+    "Review the current simulated hospital network performance "
+    "and download a report for analysis."
+)
+
+# Collect current network metrics
+report_metrics = {
+    "Metric": [
+        "Operating Mode",
+        "Total Bandwidth Demand (Mbps)",
+        "Available Bandwidth (Mbps)",
+        "Unmet Demand (Mbps)",
+        "Network Utilization (%)",
+        "Estimated Latency (ms)",
+        "Estimated Packet Loss (%)",
+        "ML Congestion Probability (%)",
+        "Baseline Critical Bandwidth (Mbps)",
+        "Priority Critical Bandwidth (Mbps)",
+        "Critical Bandwidth Improvement (Mbps)",
+        "Network Status",
+    ],
+    "Value": [
+        "Emergency" if emergency else "Normal",
+        round(float(demand), 2),
+        round(float(capacity), 2),
+        round(float(unmet_demand), 2),
+        round(float(utilization), 2),
+        round(float(latency), 2),
+        round(float(loss), 2),
+        round(float(probability) * 100, 2),
+        round(float(baseline_critical), 2),
+        round(float(adaptive_critical), 2),
+        round(float(adaptive_critical - baseline_critical), 2),
+        "Congested" if congested else "Within Capacity",
+    ],
+}
+
+report_df = pd.DataFrame(report_metrics)
+
+st.subheader("Current Network Summary")
+st.dataframe(report_df, use_container_width=True, hide_index=True)
+
+# Create a downloadable CSV report
+report_csv = report_df.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    label="📥 Download Network Performance Report (CSV)",
+    data=report_csv,
+    file_name="tejas_network_performance_report.csv",
+    mime="text/csv",
+    key="download_tejas_report",
+)
+st.caption(
+    "Report values are generated from the current prototype simulation. "
+    "ML congestion probability is a model output, not a guarantee. "
+    "Latency and packet loss are estimated values, not live measurements."
+)
+
+# ==========================================================
+# STEP 18: NETWORK EVENT HISTORY AND AUDIT LOG
+# ==========================================================
+
+st.divider()
+st.header("📝 Step 18: Network Event History and Audit Log")
+
+st.write(
+    "Review a timestamped audit log of the current simulated "
+    "hospital network state."
+)
+
+from datetime import datetime
+
+# Initialize the event history for this browser session
+if "tejas_event_log" not in st.session_state:
+    st.session_state["tejas_event_log"] = []
+
+# Build a signature for the current network state
+current_signature = (
+    bool(emergency),
+    round(float(capacity), 2),
+    round(float(demand), 2),
+    bool(congested),
+)
+
+previous_signature = st.session_state.get(
+    "tejas_previous_signature"
+)
+
+# Record events only when the state changes
+if previous_signature is None:
+    st.session_state["tejas_event_log"].append({
+        "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "Event": "Monitoring Started",
+        "Details": (
+            f"Mode: {'Emergency' if emergency else 'Normal'}; "
+            f"Capacity: {capacity:.1f} Mbps; Demand: {demand:.1f} Mbps"
+        ),
+    })
+
+else:
+    old_emergency, old_capacity, old_demand, old_congested = (
+        previous_signature
+    )
+
+    if bool(emergency) != old_emergency:
+        st.session_state["tejas_event_log"].append({
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Event": "Operating Mode Changed",
+            "Details": (
+                f"{'Emergency' if emergency else 'Normal'} mode enabled"
+            ),
+        })
+
+    if round(float(capacity), 2) != old_capacity:
+        st.session_state["tejas_event_log"].append({
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Event": "Capacity Changed",
+            "Details": (
+                f"Capacity changed from {old_capacity:.1f} "
+                f"to {capacity:.1f} Mbps"
+            ),
+        })
+
+    if bool(congested) != old_congested:
+        event_name = (
+            "Network Congestion Detected"
+            if congested
+            else "Network Congestion Cleared"
+        )
+
+        st.session_state["tejas_event_log"].append({
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Event": event_name,
+            "Details": (
+                f"Demand: {demand:.1f} Mbps; "
+                f"Capacity: {capacity:.1f} Mbps"
+            ),
+        })
+
+# Store the current state for comparison on the next rerun
+st.session_state["tejas_previous_signature"] = current_signature
+
+# Keep the most recent 100 events
+st.session_state["tejas_event_log"] = (
+    st.session_state["tejas_event_log"][-100:]
+)
+
+event_df = pd.DataFrame(
+    st.session_state["tejas_event_log"]
+)
+
+st.subheader("Recent Network Events")
+
+if not event_df.empty:
+    st.dataframe(
+        event_df.iloc[::-1],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    event_csv = event_df.to_csv(index=False).encode("utf-8")
+
+    st.download_button(
+        "📥 Download Event Audit Log (CSV)",
+        data=event_csv,
+        file_name="tejas_network_event_audit.csv",
+        mime="text/csv",
+        key="download_tejas_event_log",
+    )
+else:
+    st.info("No network events have been recorded yet.")
+
+if st.button("Clear Event History", key="clear_tejas_event_log"):
+    st.session_state["tejas_event_log"] = []
+    st.session_state.pop("tejas_previous_signature", None)
+    st.rerun()
+
+st.caption(
+    "This audit log records observed application-state changes "
+    "during the current Streamlit session. It is not a persistent "
+    "or tamper-proof production audit system."
+)
+
+# ==========================================================
+# STEP 19: LIVE NETWORK HEALTH SCORE
+# ==========================================================
+
+st.divider()
+st.header("💚 Step 19: Live Network Health Score")
+
+st.write(
+    "A rule-based score summarizing the current simulated "
+    "hospital network conditions."
+)
+
+# Calculate individual health factors (0 to 100)
+utilization_health = max(
+    0.0,
+    min(100.0, 100.0 - max(0.0, utilization - 70.0) * 2.0)
+)
+
+latency_health = max(
+    0.0,
+    min(100.0, 100.0 - max(0.0, latency - 20.0) * 0.8)
+)
+
+packet_loss_health = max(
+    0.0,
+    min(100.0, 100.0 - loss * 10.0)
+)
+
+# Weighted score: congestion has the greatest influence
+network_health_score = round(
+    0.50 * utilization_health
+    + 0.30 * latency_health
+    + 0.20 * packet_loss_health
+)
+
+network_health_score = int(
+    max(0, min(100, network_health_score))
+)
+
+if network_health_score >= 80:
+    health_status = "Healthy"
+    st.success("Network Health: HEALTHY")
+elif network_health_score >= 50:
+    health_status = "Degraded"
+    st.warning("Network Health: DEGRADED")
+else:
+    health_status = "Critical"
+    st.error("Network Health: CRITICAL")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.metric(
+        "Network Health Score",
+        f"{network_health_score}/100"
+    )
+    st.progress(network_health_score / 100)
+
+with col2:
+    st.metric(
+        "Network Status",
+        health_status
+    )
+    st.metric(
+        "Current Utilization",
+        f"{utilization:.1f}%"
+    )
+
+health_factors_df = pd.DataFrame({
+    "Health Factor": [
+        "Utilization",
+        "Estimated Latency",
+        "Estimated Packet Loss",
+    ],
+    "Factor Score": [
+        round(utilization_health, 1),
+        round(latency_health, 1),
+        round(packet_loss_health, 1),
+    ],
+})
+
+st.subheader("Health Factor Breakdown")
+
+fig_health = px.bar(
+    health_factors_df,
+    x="Health Factor",
+    y="Factor Score",
+    range_y=[0, 100],
+    text="Factor Score",
+    title="Contribution Factors (Individual Scores)",
+)
+
+st.plotly_chart(fig_health, use_container_width=True)
+
+st.caption(
+    "The overall score is a custom weighted indicator based on "
+    "simulated utilization, estimated latency, and estimated packet loss. "
+    "It is not a standardized network SLA or a real-time measurement."
+)
+
+# ==========================================================
+# STEP 20: SMART NETWORK RECOMMENDATION ENGINE
+# ==========================================================
+
+st.divider()
+st.header("🧠 Step 20: Smart Network Recommendation Engine")
+
+st.write(
+    "Rule-based recommendations generated from the current "
+    "simulated network conditions."
+)
+
+recommendations = []
+
+# Capacity and congestion analysis
+if demand > capacity:
+    recommendations.append({
+        "Priority": "Critical",
+        "Condition": "Demand exceeds capacity",
+        "Recommendation": (
+            "Increase available network capacity where possible, "
+            "or defer non-critical traffic."
+        ),
+    })
+else:
+    recommendations.append({
+        "Priority": "Normal",
+        "Condition": "Demand fits within capacity",
+        "Recommendation": (
+            "Maintain monitoring and review capacity as demand changes."
+        ),
+    })
+
+# Latency analysis
+if latency >= 100:
+    recommendations.append({
+        "Priority": "High",
+        "Condition": "High estimated latency",
+        "Recommendation": (
+            "Investigate congestion, routing, and queueing delays."
+        ),
+    })
+elif latency >= 60:
+    recommendations.append({
+        "Priority": "Medium",
+        "Condition": "Moderate estimated latency",
+        "Recommendation": (
+            "Monitor delay-sensitive applications and network load."
+        ),
+    })
+
+# Packet loss analysis
+if loss > 5:
+    recommendations.append({
+        "Priority": "High",
+        "Condition": "High estimated packet loss",
+        "Recommendation": (
+            "Investigate simulated congestion and check network links."
+        ),
+    })
+
+# Emergency mode analysis
+if emergency:
+    recommendations.append({
+        "Priority": "Critical",
+        "Condition": "Emergency mode enabled",
+        "Recommendation": (
+            "Prioritize Remote Surgery and Patient Monitoring traffic "
+            "in the simulated bandwidth allocation."
+        ),
+    })
+
+# Network health analysis
+if network_health_score < 50:
+    recommendations.append({
+        "Priority": "High",
+        "Condition": "Low network health score",
+        "Recommendation": (
+            "Investigate capacity, latency, and packet-loss factors "
+            "before relying on the network for critical traffic."
+        ),
+    })
+
+recommendation_df = pd.DataFrame(recommendations)
+
+st.subheader("Recommended Actions")
+st.dataframe(
+    recommendation_df,
+    use_container_width=True,
+    hide_index=True,
+)
+
+critical_count = sum(
+    item["Priority"] == "Critical"
+    for item in recommendations
+)
+
+high_count = sum(
+    item["Priority"] == "High"
+    for item in recommendations
+)
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric("Total Recommendations", len(recommendations))
+
+with col2:
+    st.metric("Critical Priority", critical_count)
+
+with col3:
+    st.metric("High Priority", high_count)
+
+recommendation_csv = recommendation_df.to_csv(
+    index=False
+).encode("utf-8")
+
+st.download_button(
+    "📥 Download Recommendations (CSV)",
+    data=recommendation_csv,
+    file_name="tejas_network_recommendations.csv",
+    mime="text/csv",
+    key="download_tejas_recommendations",
+)
+
+st.caption(
+    "Recommendations are generated using predefined rules and simulated "
+    "metrics. They do not automatically change network equipment or "
+    "replace a qualified hospital network administrator."
+)
+
+# ==========================================================
+# STEP 21: INTERACTIVE NETWORK SCENARIO COMPARISON
+# ==========================================================
+
+st.divider()
+st.header("📊 Step 21: Interactive Network Scenario Comparison")
+
+st.write(
+    "Compare simulated hospital network scenarios "
+    "using the same allocation policies."
+)
+
+scenario_configs = [
+    ("Normal Operation", 100, False),
+    ("Heavy Congestion", 30, False),
+    ("Hospital Emergency", 60, True),
+    ("Network Failure", 20, True),
+]
+
+comparison_rows = []
+
+for scenario_name, scenario_capacity, scenario_emergency in scenario_configs:
+
+    scenario_profile = (
+        EMERGENCY if scenario_emergency else NORMAL
+    )
+
+    scenario_demand = sum(
+        item["demand"] for item in scenario_profile.values()
+    )
+
+    # Baseline policy
+    baseline_profile = {
+        app: {
+            "demand": details["demand"],
+            "weight": [5, 4, 3, 2, 1][i]
+        }
+        for i, (app, details) in enumerate(scenario_profile.items())
+    }
+
+    # Priority policy
+    priority_profile = {
+        app: {
+            "demand": details["demand"],
+            "weight": [10, 8, 5, 3, 1][i]
+        }
+        for i, (app, details) in enumerate(scenario_profile.items())
+    }
+
+    baseline_alloc = allocate(
+        baseline_profile, scenario_capacity
+    )
+
+    priority_alloc = allocate(
+        priority_profile, scenario_capacity
+    )
+
+    critical_apps = [
+        "Remote Surgery",
+        "Patient Monitoring"
+    ]
+
+    baseline_critical_bw = sum(
+        baseline_alloc.get(app, 0)
+        for app in critical_apps
+    )
+
+    priority_critical_bw = sum(
+        priority_alloc.get(app, 0)
+        for app in critical_apps
+    )
+
+    comparison_rows.append({
+        "Scenario": scenario_name,
+        "Capacity (Mbps)": scenario_capacity,
+        "Demand (Mbps)": scenario_demand,
+        "Unmet Demand (Mbps)": max(
+            0, scenario_demand - scenario_capacity
+        ),
+        "Baseline Critical (Mbps)": round(
+            baseline_critical_bw, 2
+        ),
+        "Priority Critical (Mbps)": round(
+            priority_critical_bw, 2
+        ),
+        "Critical Gain (Mbps)": round(
+            priority_critical_bw - baseline_critical_bw, 2
+        ),
+    })
+
+scenario_comparison_df = pd.DataFrame(comparison_rows)
+
+st.subheader("Scenario Comparison Table")
+
+st.dataframe(
+    scenario_comparison_df,
+    use_container_width=True,
+    hide_index=True
+)
+
+st.subheader("Critical Bandwidth Comparison")
+
+scenario_chart_df = scenario_comparison_df.melt(
+    id_vars="Scenario",
+    value_vars=[
+        "Baseline Critical (Mbps)",
+        "Priority Critical (Mbps)"
+    ],
+    var_name="Policy",
+    value_name="Bandwidth (Mbps)"
+)
+
+fig_scenarios = px.bar(
+    scenario_chart_df,
+    x="Scenario",
+    y="Bandwidth (Mbps)",
+    color="Policy",
+    barmode="group",
+    title="Baseline vs Priority-Based Allocation"
+)
+
+st.plotly_chart(
+    fig_scenarios,
+    use_container_width=True
+)
+
+st.caption(
+    "All results are simulated. The priority policy is "
+    "rule-based, and any improvement depends on the "
+    "allocation function and available bandwidth."
+)
+
+# ==========================================================
+# STEP 22: NETWORK CAPACITY PLANNING AND WHAT-IF ANALYSIS
+# ==========================================================
+
+st.divider()
+st.header("📈 Step 22: Network Capacity Planning")
+
+st.write(
+    "Explore how different bandwidth capacities affect "
+    "hospital network performance."
+)
+
+# Select operating scenario
+planning_mode = st.selectbox(
+    "Select Network Scenario",
+    ["Normal Operation", "Hospital Emergency"],
+    key="planning_mode"
+)
+
+planning_profile = (
+    NORMAL if planning_mode == "Normal Operation" else EMERGENCY
+)
+
+planning_demand = sum(
+    item["demand"] for item in planning_profile.values()
+)
+
+# Interactive capacity slider
+planning_capacity = st.slider(
+    "Available Network Capacity (Mbps)",
+    min_value=10,
+    max_value=150,
+    value=60,
+    step=5,
+    key="planning_capacity"
+)
+
+planning_unmet = max(
+    0, planning_demand - planning_capacity
+)
+
+planning_utilization = (
+    planning_demand / planning_capacity
+) * 100
+
+# Display metrics
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "Required Bandwidth",
+        f"{planning_demand} Mbps"
+    )
+
+with col2:
+    st.metric(
+        "Available Capacity",
+        f"{planning_capacity} Mbps"
+    )
+
+with col3:
+    st.metric(
+        "Unmet Demand",
+        f"{planning_unmet} Mbps"
+    )
+
+# Generate capacity planning data
+capacity_values = list(range(10, 151, 5))
+
+planning_rows = []
+
+for cap in capacity_values:
+    unmet = max(0, planning_demand - cap)
+
+    planning_rows.append({
+        "Capacity (Mbps)": cap,
+        "Demand (Mbps)": planning_demand,
+        "Unmet Demand (Mbps)": unmet,
+    })
+
+planning_df = pd.DataFrame(planning_rows)
+
+# Create chart
+fig_planning = px.line(
+    planning_df,
+    x="Capacity (Mbps)",
+    y=[
+        "Demand (Mbps)",
+        "Unmet Demand (Mbps)"
+    ],
+    title="Capacity Planning: Demand vs Unmet Bandwidth"
+)
+
+fig_planning.add_vline(
+    x=planning_capacity,
+    line_dash="dash",
+    annotation_text="Selected Capacity"
+)
+
+st.plotly_chart(
+    fig_planning,
+    use_container_width=True
+)
+
+# Display recommendation
+st.subheader("Capacity Planning Recommendation")
+
+if planning_capacity >= planning_demand:
+    st.success(
+        "The selected capacity can support the simulated "
+        "total bandwidth demand."
+    )
+else:
+    additional_capacity = planning_demand - planning_capacity
+
+    st.warning(
+        f"An additional {additional_capacity:.1f} Mbps "
+        "is required to meet the simulated demand."
+    )
+
+st.caption(
+    "This planning tool uses fixed simulated application demands. "
+    "It does not account for real-world traffic bursts, "
+    "redundancy, or service-level guarantees."
+)
+
+# ==========================================================
+# STEP 23: NETWORK PERFORMANCE STRESS TESTING
+# ==========================================================
+
+st.divider()
+st.header("🔥 Step 23: Network Performance Stress Testing")
+
+st.write(
+    "Evaluate simulated network performance as traffic "
+    "demand increases."
+)
+
+stress_capacity = st.slider(
+    "Stress Test Network Capacity (Mbps)",
+    min_value=20,
+    max_value=150,
+    value=60,
+    step=10,
+    key="stress_capacity"
+)
+
+stress_levels = np.arange(0.5, 2.01, 0.1)
+
+stress_rows = []
+
+for load_factor in stress_levels:
+    stress_demand = demand * load_factor
+
+    stress_unmet = max(
+        0, stress_demand - stress_capacity
+    )
+
+    stress_unmet_fraction = (
+        stress_unmet / stress_demand
+        if stress_demand > 0 else 0
+    )
+
+    stress_latency = 15 + 150 * stress_unmet_fraction
+    stress_loss = 15 * stress_unmet_fraction
+
+    stress_rows.append({
+        "Traffic Load (%)": round(load_factor * 100),
+        "Demand (Mbps)": round(stress_demand, 2),
+        "Latency (ms)": round(stress_latency, 2),
+        "Packet Loss (%)": round(stress_loss, 2),
+        "Congested": stress_demand > stress_capacity,
+    })
+
+stress_df = pd.DataFrame(stress_rows)
+
+st.subheader("Stress Test Results")
+
+st.dataframe(
+    stress_df,
+    use_container_width=True,
+    hide_index=True
+)
+
+st.subheader("Latency Under Increasing Traffic")
+
+fig_stress_latency = px.line(
+    stress_df,
+    x="Traffic Load (%)",
+    y="Latency (ms)",
+    markers=True,
+    title="Estimated Latency vs Traffic Load"
+)
+
+st.plotly_chart(
+    fig_stress_latency,
+    use_container_width=True
+)
+
+st.subheader("Packet Loss Under Increasing Traffic")
+
+fig_stress_loss = px.line(
+    stress_df,
+    x="Traffic Load (%)",
+    y="Packet Loss (%)",
+    markers=True,
+    title="Estimated Packet Loss vs Traffic Load"
+)
+
+st.plotly_chart(
+    fig_stress_loss,
+    use_container_width=True
+)
+
+congested_cases = int(stress_df["Congested"].sum())
+
+st.metric(
+    "Congested Stress Test Cases",
+    f"{congested_cases} / {len(stress_df)}"
+)
+
+st.caption(
+    "Stress testing uses simulated traffic loads and formula-based "
+    "latency and packet loss. It does not generate actual network "
+    "traffic or measure physical network performance."
+)
+
+# ==========================================================
+# STEP 24: FINAL DASHBOARD OVERVIEW
+# ==========================================================
+
+st.divider()
+st.header("🏥 TEJAS HospitalNet AI — Executive Dashboard")
+
+st.write(
+    "An overview of simulated hospital network performance "
+    "and intelligent bandwidth management."
+)
+
+overview_col1, overview_col2, overview_col3, overview_col4 = st.columns(4)
+
+with overview_col1:
+    st.metric(
+        "Network Health",
+        f"{network_health_score}/100"
+    )
+
+with overview_col2:
+    st.metric(
+        "Congestion Probability",
+        f"{probability * 100:.1f}%"
+    )
+
+with overview_col3:
+    st.metric(
+        "Critical Bandwidth Gain",
+        f"{adaptive_critical - baseline_critical:.1f} Mbps"
+    )
+
+with overview_col4:
+    st.metric(
+        "Network Status",
+        "Congested" if congested else "Stable"
+    )
+
+st.subheader("Prototype Capabilities")
+
+capabilities = [
+    "AI-Based Congestion Prediction",
+    "Priority-Based Bandwidth Allocation",
+    "Emergency Traffic Prioritization",
+    "Network Failure and Recovery Simulation",
+    "Network Health Monitoring",
+    "Automated Scenario Testing",
+    "Capacity Planning and Stress Testing",
+    "Performance Reports and Event History",
+    "Smart Network Recommendations",
+]
+
+for capability in capabilities:
+    st.write(f"✅ {capability}")
+
+st.info(
+    "TEJAS is a simulated research prototype. "
+    "Congestion prediction uses a synthetic-data ML model, "
+    "while bandwidth allocation and recommendations are rule-based."
+)
+# --------------------------------------------------
+# PROTOTYPE DISCLAIMER
+# --------------------------------------------------
 st.divider()
 
-dynamic_demands = show_dynamic_hospital_dashboard()
+st.info(
+    "HospitalNet AI is a simulation prototype. "
+    "It does not monitor or control a real hospital "
+    "network and does not guarantee medical-service "
+    "performance."
+)
